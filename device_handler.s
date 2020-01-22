@@ -100,6 +100,7 @@ FOUND:
 	      ld    l, a	    ; is starting address zero?
 	      or    h
 	      jr    z, BADOP	    ; Yes, jump (operation invalid)
+		  pop 	af
 	      jp    (hl)	    ; Goto subroutine
 	      
 BADDN:	      
