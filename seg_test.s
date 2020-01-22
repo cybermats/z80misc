@@ -34,8 +34,8 @@ loop:
 
 
 	      .include "device_handler.s"
-	      .include "segment.s"
 	      .include "util.s"
+	      .include "segment.s"
 
 
 				    ; --------------------------------------------
