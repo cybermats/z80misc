@@ -1,7 +1,7 @@
 RAMBEG:	      .equ  $8000	    ; Begin of RAM
 RAMEND:	      .equ  $ffff	    ; End of RAM
 DVTE:	      .equ  $8100	    ; Device Table Entry memory pool
-DVLST:	      .equ  $81ff	    ; Device List Pointer
+DVLST:	      .equ  $81fe	    ; Device List Pointer
 IOCB:	      .equ  $8200	    ; IO Control Block
 				    
 				    
