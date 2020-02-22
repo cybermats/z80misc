@@ -1,7 +1,7 @@
 ASM=vasmz80_oldstyle
 ASMFLAGS=-Fbin -dotdir
 PROGRAMMER=minipro
-EEPROM=CAT28C16A
+EEPROM=AT28C256
 
 %.bin: %.s
 	$(ASM) $(ASMFLAGS) -o $@ $<
