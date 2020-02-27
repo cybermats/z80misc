@@ -33,9 +33,9 @@ loop:
 	      halt
 
 
-	      .include "device_handler.s"
-	      .include "util.s"
-	      .include "segment.s"
+	      .include "utils/device_handler.s"
+	      .include "utils/segment.s"
+	      .include "utils/util.s"
 
 
 				    ; --------------------------------------------

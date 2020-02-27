@@ -1,6 +1,11 @@
 RAMBEG:	      .equ  $8000	    ; Begin of RAM
 RAMEND:	      .equ  $ffff	    ; End of RAM
-	
+VRAMBEG:	  .equ  $7000		; Begin VRAM
+VRAMEND:	  .equ  $7fff		; End VRAM
+OUTPORT:	  .equ  $00			; Parallel out port
+VADDRPORT:	  .equ  $80			; Video Address port
+VDATAPORT:	  .equ  $81			; Video Data port
+
 init:				    
 	ld    SP, RAMEND	    ; Set Stack to end of memory
 	jp main
@@ -9,38 +14,39 @@ init:
 	
 main:
 	ld a, $1		; Indicate that the test starts
-	out ($00), a
+	out (OUTPORT), a
+
 
 	; Test memory 
-	ld hl, RAMBEG	; hl = base address 
-	ld de, $7000	; de = size of area
+	ld hl, VRAMBEG	; hl = base address 
+	ld de, VRAMEND - VRAMBEG	; de = size of area
 	call RAMTST 
 
 	jr c, RAMERR	; If carry is set, jump to RAMERR
 	ld a, $2		; No error, indicate success
-	out ($00), a
+	out (OUTPORT), a
 	halt
-
 RAMERR:
-	
-
 	; An error has happened. Loop through $ff, h, l, and a.
 	ld e, a 		; Save a 
+RAMERRLOOP:
 	ld a, $ff 		; Show $ff
-	out ($00), a 
+	out (OUTPORT), a 
 	call SLEEP
 	ld a, h 		; Show h
-	out ($00), a 
+	out (OUTPORT), a 
 	call SLEEP
 	ld a, l 		; Show l
-	out ($00), a 
+	out (OUTPORT), a 
 	call SLEEP
 	ld a, e 		; Show error value
-	out ($00), a 
+	out (OUTPORT), a 
 	call SLEEP
-	jp RAMERR
+	jp RAMERRLOOP
 
 
+	.include "utils/ramtest.s"
+	.include "utils/timing.s"
 
 SLEEP:
 	; Delay 1 second
@@ -52,9 +58,21 @@ delay_loop:
 	djnz delay_loop
 	ret	
 
+	.org $0700
+VIDEO_INIT_TBL:
+	.db 100, 80, 82, 12
+	.db 31, 12, 30, 31
+	.db 0, 15
 
-	.include "timing.s"
-	.include "ramtest.s"
-	
-	.org $7fe
+
+	.org $07fe
 	.word $0000
+
+
+
+; Pin out for Controller pins from Video Card, from left to right.
+; 0 - reset
+; 1 - WR
+; 2 - RD
+; 3 - IORQ
+; 4 - MREQ
