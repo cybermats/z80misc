@@ -1,14 +1,14 @@
 
-init:
+RESET:
 	di
 	ld a, $1
 	out (OUTPORT), a
 	ld    SP, STACK_START	    ; Set Stack to end of memory
-	jp main
+	jp INIT
 
 	.org $0100
 	
-main:
+INIT:
 	; Prepare system
 	ld a, $2		; Indicate that the system starts
 	out (OUTPORT), a
@@ -17,21 +17,21 @@ main:
 	ld hl, VRAMBEG
 	ld de, VRAMEND - VRAMBEG
 	call RAMTST
-	jr nc, RAMTEST_SUCC
+	jr nc, .ramtest_succ
 
-RAMTEST_ERR:
+.ramtest_err:
 	ld a, $aa
 	out (OUTPORT), a
 	halt
-	jr RAMTEST_ERR
+	jr .ramtest_err
 
-RAMTEST_SUCC:
+.ramtest_succ:
+
+MAIN:
 	ld a, $3		; Indicate that the system starts
 	out (OUTPORT), a
 
-	call INITDL
-	ld a, VIDEO_DVC
-	call SETUP_VIDEO_DRIVER
+	call VD_CONFIGURE
 
 	ld a, $4		; Indicate that the video has been initialized
 	out (OUTPORT), a
@@ -47,6 +47,7 @@ RAMTEST_SUCC:
 	ld ($8200), a
 	ld d, h
 	ld e, l
+	ld a, 0
 	ld (de), a
 	inc de
 	ld (de), a
@@ -70,7 +71,7 @@ RAMTEST_SUCC:
 	ld a, $20
 	ld (de), a
 	
-	call ECHO
+	call VD_OUTN
 	ld a, 250
 	call DELAY
 	pop bc
@@ -89,24 +90,6 @@ RAMTEST_SUCC:
 	jr .loop
 
 
-ECHO:
-	ld ix, -IOCBSZ
-	add ix, sp
-	ld sp, ix
-
-	ld (ix+IOCBOP), WNBYTE
-	ld (ix+IOCBDN), VIDEO_DVC
-	ld (ix+IOCBBA + 1), h
-	ld (ix+IOCBBA), l
-	ld (ix+IOCBBL + 1), b
-	ld (ix+IOCBBL), c
-	call IOHDLR
-
-	ld ix, IOCBSZ
-	add ix, sp
-	ld sp, ix
-	ret
-
 SLEEP:
 	push bc
 	; Delay 2 second
@@ -123,7 +106,6 @@ delay_loop:
 	.include "utils/timing.s"
 	.include "utils/ramtest.s"
 	.include "utils/video_driver.s"
-	.include "utils/device_handler.s"
 	.include "utils/strings.s"
 
 MESSAGES:

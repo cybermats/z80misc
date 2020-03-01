@@ -2,13 +2,8 @@
 ;
 ; Title:	Video Driver
 ;
-; Purpose:	Full code for managing the video driver
-; 		through the Device Handler.
+; Purpose:	Driver for the video card
 ;
-;		Status code	Description
-;		       0		No Error
-;		       3		Video Card ready
-;		       250		Ram test failed
 ; ***********************************************************
 
 
@@ -19,97 +14,19 @@ VIDEO_COLUMNS:	.equ	80
 VIDEO_ROWS:	.equ	30
 
 
-
-
-
-
-
 ; ***********************************************************
-; Title:     Sets up and starts the video driver
-; Name:	     SETUP_VIDEO_DRIVER
-; Purpose:   Initializes the video card and driver by
-;		 1. Create Device Table Entry
-;		 2. Add device to Device List
-;		 3. Initialize device
-;
-; Entry:     Nothing
-;
-; Exit:	     Nothing
-; Registers used:	HL
+; Title:	Initialize and configure the video card
+; Name: 	VD_CONFIGURE
+; Purpose:	Configures the video card with the settings
+; 		that will be used.
+; Entry:	None
+; 		
+; Exit:		None
+; Registers used:	 A
 ; ***********************************************************
-
-SETUP_VIDEO_DRIVER:
-	ld hl, VIDEO_STATUS
-	ld (hl), NOERR
-
-	; 1. Create Device Table Entry
-	call CREATEDTE	   ; Get empty Device Table Entry
-	push hl		   ; Save DTE
-	ld de, VIDEO_DEVICE ; Get Device Table Entry from ROM
-	       		   ; and copy it to RAM
-	ex de, hl
-	ld bc, 17	   ; Size of DTE
-	ldir   		   ; Copy the DTE from ROM to RAM
-
-	pop hl		   ; Restore DTE
-	
-	; 2. Add device to Device List
-	call ADDDL	   ; Add device to Device List
-
-
-	; 3. Initialize operations
-	ld ix, -IOCBSZ	   ; Make room on the stack for IOCB
-	add ix, sp
-	ld sp, ix
-
-	ld (ix+IOCBOP), IOINIT	; Initialize operations
-	ld (ix+IOCBDN), a  ; Device number in register a
-	call IOHDLR	   ; Call IO Handler
-
-	ld hl, IOCBSZ	   ; Clean up stack
-	add hl, sp
-	ld sp, hl
-
-
-	; Set cursor to 0
-	ld bc, 0
-	call MOVE_CURSOR
-
-	ret	
-
-
-; ***********************************************************
-; Title:     Video Driver initialization
-; Name:	     VD_INIT
-; Purpose:   Initializes the video card and driver by
-; 	         1. Testing the video ram
-;		 2. Initializing the Video Ram to 0
-;		 3. Initialize operations
-;		 4. Set all video varibles in memory
-;
-; Entry:     Nothing
-;
-; Exit:	     Nothing
-; ***********************************************************
-
-VD_INIT:
+VD_CONFIGURE:
 	push hl
-	push de
 	push bc
-	push af
-	; 1. Test video ram
-	; 2. Initialize video ram to 0 (it's done in the ram test)
-	ld hl, VRAMBEG
-	ld de, VRAMEND - VRAMBEG
-	call RAMTST
-	jr nc, .init_6845
-	; Do error handling
-	ld hl, VIDEO_STATUS
-	ld (hl), RAMERR
-	jr .done
-	
-	; 3. Initialize operations
-.init_6845:
 	ld hl, VD_INIT_TBL
 	ld b, 16
 	ld c, 0
@@ -128,29 +45,12 @@ VD_INIT:
 	ld (hl), 0
 	ld hl, CURSOR_ROW
 	ld (hl), 0
-	ld hl, VIDEO_STATUS
-	ld (hl), DEVRDY
+	call VD_UPDATE_CURSOR
 .done:
-	pop af
 	pop bc
-	pop de
 	pop hl
 	ret
 
-
-; ***********************************************************
-; Title:	Returns video driver status
-; Name: 	VD_OSTAT
-; Purpose:	Helper function for the Device Handler to
-; 		return the Video Driver status
-; Entry:	None
-; Exit:		Register A = Status
-; Registers used:	 A
-; ***********************************************************
-
-VD_OSTAT:
-	ld a, (VIDEO_STATUS)
-	ret
 
 
 ; ***********************************************************
@@ -160,40 +60,53 @@ VD_OSTAT:
 ; 		at the location of the cursor. Also
 ;		changes the location of the cursor.
 ; Entry:	Register A = Char to output
-; 		Register IX = Base address of IOCB
-; Exit:		Register A = Copy of the IOCB status byte
+; Exit:		None
 ; Registers used:	 A
 ; ***********************************************************
 VD_OUT:
 	out (OUTPORT), a
 	push hl
 	push de
-	call GET_CURSOR_ADDR	; Get the cursor address
+	call VD_GET_CURSOR_ADDR	; Get the cursor address
 	ld de, VRAMBEG		; Get the base memory for vram
 	add hl, de		; Get the memory for the new char
 	ld (hl), a		; Output char
 
 	ld b, 0	 		; Move the cursor one step to the right
 	ld c, 1
-	call MOVE_CURSOR_REL
-	call UPDATE_CURSOR
-	ld a, NOERR
+	call VD_MOVE_CURSOR_REL
+	call VD_UPDATE_CURSOR
 	pop de
 	pop hl
 	ret
 
 
 
+; ***********************************************************
+; Title:	Outputs N bytes to the video card
+; Name: 	VD_OUTN
+; Purpose:	Prints one character to the video card
+; 		at the location of the cursor. Also
+;		changes the location of the cursor.
+;
+;		Handles newlines (\n) and null terminated
+;		strings.
+;
+; Entry:	Register HL = Pointer to string
+; 		Register BC = Length of string
+;
+; Exit:		None
+; Registers used:	 A, HL, BC
+; ***********************************************************
 VD_OUTN:
-	call GET_CURSOR_ADDR
+	push de
+	push hl
+	call VD_GET_CURSOR_ADDR
 	ld de, VRAMBEG
 	add hl, de
 	ex de, hl
+	pop hl
 	
-	ld h, (ix + IOCBBA + 1)
-	ld l, (ix + IOCBBA)
-	ld b, (ix + IOCBBL + 1)
-	ld c, (ix + IOCBBL)
 .loop:
 	ld a, (hl)
 	or a		; Check end of string
@@ -204,18 +117,19 @@ VD_OUTN:
 	push bc
 	ld b, 0
 	ld c, 1
-	call MOVE_CURSOR_REL
+	call VD_MOVE_CURSOR_REL
 	pop bc
 
 	ldi		; Copy data
 	jp pe, .loop
 .done:
-	call UPDATE_CURSOR
+	call VD_UPDATE_CURSOR
+	pop de
 	ret
 .eol:
 	push hl
-	call NEW_LINE	; Get the new frame buffer pointer
-	call GET_CURSOR_ADDR
+	call VD_NEW_LINE	; Get the new frame buffer pointer
+	call VD_GET_CURSOR_ADDR
 	ld de, VRAMBEG
 	add hl, de
 	ex de, hl
@@ -229,7 +143,7 @@ VD_OUTN:
 	
 
 	
-NEW_LINE:
+VD_NEW_LINE:
 	xor a
 	ld (CURSOR_COL), a
 	ld a, (CURSOR_ROW)
@@ -257,7 +171,7 @@ NEW_LINE:
 ; Registers used:	 HL
 ; ***********************************************************
 
-GET_CURSOR_ADDR:
+VD_GET_CURSOR_ADDR:
 	push bc
 	push de
 	ld hl, CURSOR_ROW
@@ -297,7 +211,7 @@ GET_CURSOR_ADDR:
 ; Exit:		Cursor has been moved, and variables updated.
 ; Registers used:      A, BC
 ; ***********************************************************
-MOVE_CURSOR_REL:
+VD_MOVE_CURSOR_REL:
 ; Update and adjust the rows and columns
   	; Columns
 	ld a, (CURSOR_COL)
@@ -343,7 +257,7 @@ MOVE_CURSOR_REL:
 ; Exit:		Cursor has been moved, and variables updated.
 ; Registers used:      A
 ; ***********************************************************
-MOVE_CURSOR:
+VD_MOVE_CURSOR:
 	push hl		; Save status
 	push de
 	ld hl, CURSOR_ROW
@@ -364,8 +278,6 @@ MOVE_CURSOR:
 .loop_done:
 	add hl, bc
 
-	call UPDATE_CURSOR
-
 	pop de
 	pop hl
 	ret
@@ -379,7 +291,7 @@ MOVE_CURSOR:
 ; Exit:		None
 ; Registers used:      None
 ; ***********************************************************
-UPDATE_CURSOR:
+VD_UPDATE_CURSOR:
 	push hl
 	push de
 	push bc
@@ -420,17 +332,6 @@ UPDATE_CURSOR:
 	pop hl
 	ret
 
-
-VIDEO_DEVICE:  ; Device table entry for the Video Card
-	.dw	0	; Link Field
-	.db	VIDEO_DVC ; Device 1
-	.dw	VD_INIT ; Video Driver Initialize
-	.dw	0	; No Video Driver Input Status
-	.dw	0	; No Video Driver Input 1 byte
-	.dw	0	; No Video Driver Input N bytes
-	.dw	VD_OSTAT; Video Driver output status
-	.dw	VD_OUT  ; Video Driver output 1 byte
-	.dw	VD_OUTN ; Video Driver output N bytes
 
 VD_INIT_TBL:
 	.db $64, $50 ; Horizontal Total, Horizontal Displayed
