@@ -1,14 +1,14 @@
-salloc	.macro
+	macro salloc
 	ld \1, -\2
 	add \1, sp
 	ld sp, \1
-	.end
+	endm
 
-sfree	.macro
+	macro sfree
 	ld \1, \2
 	add \1, sp
 	ld sp, \1
-	.endmacro
+	endm
 	
 
 	

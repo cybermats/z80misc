@@ -1,6 +1,6 @@
 ; Reading a ps/2 keyboard through the Z80 SIO
 
-  	.include "constants.s"
+  	include "constants.s"
 	
 reset:
 	ld a, $1	; Indicate that the system starts
@@ -13,14 +13,14 @@ reset:
 	jp init
 
 ; General interrupt received
-	.org $0038
+	org $0038
 keyboard_int:
 	call HANDLE_KEYBOARD
 	ei
 	reti
 
 ; Non-maskable interrupt received
-  	.org $0066
+  	org $0066
 nmi:
 	ld a, $0f	; Indicate that a NMI has been received.
 	out (OUTPORT), a
@@ -29,7 +29,7 @@ nmi:
 	retn
 	
 
-	.org $0100
+	org $0100
 init:
 ; Prepare system
 	ld a, $2	; Indicate that the system initializes
@@ -73,10 +73,10 @@ HANDLE_KEYBOARD:
 	out (SIOCMDB), a
 	ret
 
-	.include "utils/timing.s"
+	include "utils/timing.s"
 
 
 ; End of program
-	.org $07fe
-	.word $0000
-	.end
+	org $07fe
+	word $0000
+	end

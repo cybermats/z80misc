@@ -1,3 +1,4 @@
+	include "utils/macro.s"
 
 RESET:
 	di
@@ -6,7 +7,7 @@ RESET:
 	ld    SP, STACK_START	    ; Set Stack to end of memory
 	jp INIT
 
-	.org $0100
+	org $0100
 	
 INIT:
 	; Prepare system
@@ -27,7 +28,6 @@ INIT:
 
 .ramtest_succ:
 
-MAIN:
 	ld a, $3		; Indicate that the system starts
 	out (OUTPORT), a
 
@@ -35,13 +35,12 @@ MAIN:
 
 	ld a, $4		; Indicate that the video has been initialized
 	out (OUTPORT), a
+MAIN:
 
 .loop:
 	call SLEEP
 
-	ld hl, -12
-	add hl, sp
-	ld sp, hl
+	salloc hl, 12
 
 	ld a, $ff
 	ld ($8200), a
@@ -81,9 +80,7 @@ MAIN:
 
 	
 
-	ld hl, 12
-	add hl, sp
-	ld sp, hl
+	sfree hl, 12
 
 
 	halt
@@ -102,29 +99,29 @@ delay_loop:
 	pop bc
 	ret	
 
-	.include "constants.s"
-	.include "utils/timing.s"
-	.include "utils/ramtest.s"
-	.include "utils/video_driver.s"
-	.include "utils/strings.s"
+	include "constants.s"
+	include "utils/timing.s"
+	include "utils/ramtest.s"
+	include "utils/video_driver.s"
+	include "utils/strings.s"
 
 MESSAGES:
-	.dw MSG1
-	.dw MSG2
-	.dw MSG3
-	.dw MSG4
-MSG1:	.string "Hello, world!"
-MSG1_LEN: .equ $-MSG1
-MSG2:	.string "My name is Mats Fredriksson!"
-MSG2_LEN: .equ $-MSG2
-MSG3:	.string "This\nis\na\nmultiline\nstring."
-MSG3_LEN: .equ $-MSG3
-MSG4:	.string "Foo bar1234567689"
-MSG4_LEN: .equ $-MSG4
+	dw MSG1
+	dw MSG2
+	dw MSG3
+	dw MSG4
+MSG1:	string "Hello, world!"
+MSG1_LEN: equ $-MSG1
+MSG2:	string "My name is Mats Fredriksson!"
+MSG2_LEN: equ $-MSG2
+MSG3:	string "This\nis\na\nmultiline\nstring."
+MSG3_LEN: equ $-MSG3
+MSG4:	string "Foo bar1234567689"
+MSG4_LEN: equ $-MSG4
 
-	.org $07fe
-	.word $0000
-	.end
+	org $07fe
+	word $0000
+	end
 
 
 

@@ -4,36 +4,36 @@
 
 ; IOCB and Device Table Equates
 				    
-IOCBDN:		.equ  0		; IOCB Device Number
-IOCBOP:		.equ  1		; IOCB Operation Number
-IOCBST:		.equ  2		; IOCB Status
-IOCBBA:		.equ  3		; IOCB Buffer Address
-IOCBBL:		.equ  5		; IOCB Buffer Length
-IOCBSZ:		.equ  7		; IO Control Block Size
+IOCBDN:		equ  0		; IOCB Device Number
+IOCBOP:		equ  1		; IOCB Operation Number
+IOCBST:		equ  2		; IOCB Status
+IOCBBA:		equ  3		; IOCB Buffer Address
+IOCBBL:		equ  5		; IOCB Buffer Length
+IOCBSZ:		equ  7		; IO Control Block Size
 
-DTLNK:		.equ  0		; Device Table Link Field
-DTDN:		.equ  2		; Device Table device number
-DTSR:		.equ  3		; Beginning of Device Table Subroutines
+DTLNK:		equ  0		; Device Table Link Field
+DTDN:		equ  2		; Device Table device number
+DTSR:		equ  3		; Beginning of Device Table Subroutines
 
 				; Operation Numbers
 
-NUMOP:		.equ  7		; Number of operations
-IOINIT:		.equ  0		; Initialization
-ISTAT:		.equ  1		; Input Status
-R1BYTE:		.equ  2		; Read 1 Byte
-RNBYTE:		.equ  3		; Read N Bytes
-OSTAT:		.equ  4		; Output Status
-W1BYTE:		.equ  5		; Write 1 Byte
-WNBYTE:		.equ  6		; Write N Bytes
+NUMOP:		equ  7		; Number of operations
+IOINIT:		equ  0		; Initialization
+ISTAT:		equ  1		; Input Status
+R1BYTE:		equ  2		; Read 1 Byte
+RNBYTE:		equ  3		; Read N Bytes
+OSTAT:		equ  4		; Output Status
+W1BYTE:		equ  5		; Write 1 Byte
+WNBYTE:		equ  6		; Write N Bytes
 
 ; Status Values
 
-NOERR:		.equ  0		; No errors
-DEVERR:		.equ  1		; Bad Device Number
-OPERR:		.equ  2		; Bad Operation Number
-DEVRDY:		.equ  3		; Input Data Available or Output Device Ready
-RAMERR:		.equ  253	; RAM test failed on device.
-BUFERR:		.equ  254	; Buffer too small for BDOS Read Console Buffer
+NOERR:		equ  0		; No errors
+DEVERR:		equ  1		; Bad Device Number
+OPERR:		equ  2		; Bad Operation Number
+DEVRDY:		equ  3		; Input Data Available or Output Device Ready
+RAMERR:		equ  253	; RAM test failed on device.
+BUFERR:		equ  254	; Buffer too small for BDOS Read Console Buffer
 
 
 ; Title: 	I/O Device Table Handler

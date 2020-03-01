@@ -1,6 +1,6 @@
-I2C_ADDR:     .equ  $70		    ; I2C Address
-SEG_BRGHT:    .equ  $01		    ; Screen brightness
-VIDRAM:	      .equ  $8000     ; Video RAM
+I2C_ADDR:     equ  $70		    ; I2C Address
+SEG_BRGHT:    equ  $01		    ; Screen brightness
+VIDRAM:	      equ  $8000     ; Video RAM
 
 
 	      
@@ -178,9 +178,9 @@ segment_loop:
 
 				    ; Default value for frame buffer
 screen_init:			    
-	      .defb $00, $00, $10, $00, $00
+	      defb $00, $00, $10, $00, $00
 screen_init_len: 
-	      .defb $ - screen_init
+	      defb $ - screen_init
 
 				    ; Device table entry
 SEGDV:
@@ -195,11 +195,11 @@ SEGDV:
 	      dw    0		    ; No segment output n bytes
 	      
 	      
-	      .org  $400
+	      org  $400
 font:	      
-	      .defb $3F,$06,$5B,$4F, $66,$6D,$7D,$07, $7F,$6F,$77,$7C, $39,$5E,$79,$71 ; All digits, 0-9a-f
-       .defb $00, $02
+	      defb $3F,$06,$5B,$4F, $66,$6D,$7D,$07, $7F,$6F,$77,$7C, $39,$5E,$79,$71 ; All digits, 0-9a-f
+       	      defb $00, $02
 	      
 
 
-		.include "utils/i2c.s"
+	      include "utils/i2c.s"

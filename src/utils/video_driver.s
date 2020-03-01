@@ -10,8 +10,8 @@
 
 ; Misc constants
 
-VIDEO_COLUMNS:	.equ	80
-VIDEO_ROWS:	.equ	30
+VIDEO_COLUMNS:	equ	80
+VIDEO_ROWS:	equ	30
 
 
 ; ***********************************************************
@@ -334,11 +334,11 @@ VD_UPDATE_CURSOR:
 
 
 VD_INIT_TBL:
-	.db $64, $50 ; Horizontal Total, Horizontal Displayed
-	.db $52, $0c ; Horizontal Sync Pos, Sync Width
-	.db $1f, $0c ; Vertical Total, Vertical Total Adjust
-	.db $1e, $1f ; Vertical Displayed, Vertical Sync Position
-	.db $00, $0f ; Interlace Mode, Maximum Scan Line Address
-	.db $47, $0f ; Cursor start + mode, Cursor end
-	.db $00, $00 ; Memory Start offset high, low
-	.db $00, $00 ; Cursor address high, low
+	db $64, $50 ; Horizontal Total, Horizontal Displayed
+	db $52, $0c ; Horizontal Sync Pos, Sync Width
+	db $1f, $0c ; Vertical Total, Vertical Total Adjust
+	db $1e, $1f ; Vertical Displayed, Vertical Sync Position
+	db $00, $0f ; Interlace Mode, Maximum Scan Line Address
+	db $47, $0f ; Cursor start + mode, Cursor end
+	db $00, $00 ; Memory Start offset high, low
+	db $00, $00 ; Cursor address high, low

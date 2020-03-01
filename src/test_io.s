@@ -3,7 +3,7 @@
 	ld a, $aa
 	out ($ff), a
 	halt
-	.org $7fe
-	.word $0000
+	org $7fe
+	word $0000
 
 	

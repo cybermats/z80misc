@@ -1,11 +1,11 @@
-RAMBEG:	      .equ  $8000	    ; Begin of RAM
-RAMEND:	      .equ  $ffff	    ; End of RAM
+RAMBEG:	      equ  $8000	    ; Begin of RAM
+RAMEND:	      equ  $ffff	    ; End of RAM
 	
 init:				    
 	ld    SP, RAMEND	    ; Set Stack to end of memory
 	jp main
 	
-	.org $0100
+	org $0100
 	
 main:
 	ld a, $1		; Indicate that the test starts
@@ -53,8 +53,8 @@ delay_loop:
 	ret	
 
 
-	.include "utils/timing.s"
-	.include "utils/ramtest.s"
+	include "utils/timing.s"
+	include "utils/ramtest.s"
 	
-	.org $7fe
-	.word $0000
+	org $7fe
+	word $0000

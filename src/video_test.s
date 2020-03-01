@@ -1,16 +1,16 @@
-RAMBEG:	      .equ  $8000	    ; Begin of RAM
-RAMEND:	      .equ  $ffff	    ; End of RAM
-VRAMBEG:	  .equ  $7000		; Begin VRAM
-VRAMEND:	  .equ  $7fff		; End VRAM
-OUTPORT:	  .equ  $00			; Parallel out port
-VADDRPORT:	  .equ  $80			; Video Address port
-VDATAPORT:	  .equ  $81			; Video Data port
+RAMBEG:	      equ  $8000	    ; Begin of RAM
+RAMEND:	      equ  $ffff	    ; End of RAM
+VRAMBEG:	  equ  $7000		; Begin VRAM
+VRAMEND:	  equ  $7fff		; End VRAM
+OUTPORT:	  equ  $00			; Parallel out port
+VADDRPORT:	  equ  $80			; Video Address port
+VDATAPORT:	  equ  $81			; Video Data port
 
 init:				    
 	ld    SP, RAMEND	    ; Set Stack to end of memory
 	jp main
 	
-	.org $0100
+	org $0100
 	
 main:
 	ld a, $1		; Indicate that the test starts
@@ -45,8 +45,8 @@ RAMERRLOOP:
 	jp RAMERRLOOP
 
 
-	.include "utils/ramtest.s"
-	.include "utils/timing.s"
+	include "utils/ramtest.s"
+	include "utils/timing.s"
 
 SLEEP:
 	; Delay 1 second
@@ -58,15 +58,15 @@ delay_loop:
 	djnz delay_loop
 	ret	
 
-	.org $0700
+	org $0700
 VIDEO_INIT_TBL:
-	.db 100, 80, 82, 12
-	.db 31, 12, 30, 31
-	.db 0, 15
+	db 100, 80, 82, 12
+	db 31, 12, 30, 31
+	db 0, 15
 
 
-	.org $07fe
-	.word $0000
+	org $07fe
+	word $0000
 
 
 

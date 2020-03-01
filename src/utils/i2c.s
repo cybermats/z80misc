@@ -1,9 +1,9 @@
 				    ; Data is on pin A15
 				    ; Clock is on pin A14
-I2C_D0_C0:    .equ  $00		    ; Data is 0, Clock is 0
-I2C_D0_C1:    .equ  $80		    ; Data is 0, Clock is 1
-I2C_D1_C0:    .equ  $40		    ; Data is 1, Clock is 0
-I2C_D1_C1:    .equ  $c0		    ; Data is 1, Clock is 1
+I2C_D0_C0:    equ  $00		    ; Data is 0, Clock is 0
+I2C_D0_C1:    equ  $80		    ; Data is 0, Clock is 1
+I2C_D1_C0:    equ  $40		    ; Data is 1, Clock is 0
+I2C_D1_C1:    equ  $c0		    ; Data is 1, Clock is 1
 
 
 

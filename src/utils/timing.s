@@ -9,7 +9,7 @@
 ; Registers used: AF
 ; 
 	      
-CPMS:	.equ	10000	    
+CPMS:	equ	10000	    
 		; 2000 = 2MHz Clock
 		; 4000 = 4MHz Clock
 		; 6000 = 6MHz Clock

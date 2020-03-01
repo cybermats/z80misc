@@ -1,8 +1,8 @@
-RAMBEG:	      .equ  $8000	    ; Begin of RAM
-RAMEND:	      .equ  $ffff	    ; End of RAM
-DVTE:	      .equ  $8100	    ; Device Table Entry memory pool
-DVLST:	      .equ  $81ff	    ; Device List Pointer
-IOCB:	      .equ  $8200	    ; IO Control Block
+RAMBEG:	      equ  $8000	    ; Begin of RAM
+RAMEND:	      equ  $ffff	    ; End of RAM
+DVTE:	      equ  $8100	    ; Device Table Entry memory pool
+DVLST:	      equ  $81ff	    ; Device List Pointer
+IOCB:	      equ  $8200	    ; IO Control Block
 				    
 				    
 				    
@@ -19,7 +19,7 @@ init:
 	      call  segment_device  ; Add and Initialize the Segment Display
 	      jp    main	    ; Jump to start
 				    
-	      .org  $0100
+	      org  $0100
 main:
 	      ld    ix, IOCB
 	      ld    (ix+IOCBOP), W1BYTE
@@ -33,17 +33,17 @@ loop:
 	      halt
 
 
-	      .include "utils/device_handler.s"
-	      .include "utils/segment.s"
-	      .include "utils/util.s"
+	      include "utils/device_handler.s"
+	      include "utils/segment.s"
+	      include "utils/util.s"
 
 
 				    ; --------------------------------------------
 				    ; End of file
 				    ; --------------------------------------------
-	      .org  $7fe
-	      .word $0000
-	      .end
+	      org  $7fe
+	      word $0000
+	      end
 	      
 	      
 	      
