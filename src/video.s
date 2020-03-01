@@ -1,20 +1,16 @@
-RAMBEG:		.equ	$8000	    ; Begin of RAM
-RAMEND:		.equ	$ffff	    ; End of RAM
-VRAMBEG:	.equ	$7000		; Begin VRAM
-VRAMEND:	.equ	$7fff		; End VRAM
-OUTPORT:	.equ	$00			; Parallel out port
-VADDRPORT:	.equ	$80			; Video Address port
-VDATAPORT:	.equ	$81			; Video Data port
 
 init:
-	ld    SP, RAMEND	    ; Set Stack to end of memory
-	;	jp main
+	di
+	ld a, $1
+	out (OUTPORT), a
+	ld    SP, STACK_START	    ; Set Stack to end of memory
+	jp main
 
-	;	.org $0100
+	.org $0100
 	
 main:
 	; Prepare system
-	ld a, $1		; Indicate that the system starts
+	ld a, $2		; Indicate that the system starts
 	out (OUTPORT), a
 
 	; Do ram test
@@ -24,150 +20,98 @@ main:
 	jr nc, RAMTEST_SUCC
 
 RAMTEST_ERR:
-	ld a, $ff
+	ld a, $aa
 	out (OUTPORT), a
 	halt
+	jr RAMTEST_ERR
 
 RAMTEST_SUCC:
-
-
-	ld a, $2		; Indicate that the system starts
+	ld a, $3		; Indicate that the system starts
 	out (OUTPORT), a
 
+	call INITDL
+	ld a, VIDEO_DVC
+	call SETUP_VIDEO_DRIVER
 
-	; Initialize the 6845
-	ld hl, VIDEO_INIT_TBL
-	ld b, 16
-	ld c, 0
-
-init_6845_loop:
-	ld a, c
-	out (OUTPORT), a
-	out (VADDRPORT), a
-	ld a, (hl)
-	out (OUTPORT), a
-	out (VDATAPORT), a
-	inc hl
-	inc c
-	djnz init_6845_loop
-
-	ld a, $4		; Indicate that the system starts
+	ld a, $4		; Indicate that the video has been initialized
 	out (OUTPORT), a
 
-	ld hl, VRAMBEG	; hl = base address 
-	ld bc, VRAMEND - VRAMBEG	; bc = size of area
-	ld de, MESSAGE
-
-	ld a, 3
-	out (OUTPORT), a
-
-	jr SLOWLY_UPDATE_SCREEN
-
-
-; Paint border with cursor at 0,0
-PAINT_BORDER:
-	ld a, $db ; Full block
-	; Top row
-	ld hl, VRAMBEG
-	ld de, VRAMBEG+1
-	ld (hl), a
-	ld bc, 79
-	ldir
-
-	; Bottom row
-	ld hl, VRAMBEG + (80 * 29) ; Beginning of last row
-	ld de, VRAMBEG + (80 * 29) + 1
-	ld (hl), a
-	ld bc, 79
-	ldir
-
-
-	ld hl, VRAMBEG
-	ld de, 79
-	ld b, 30
-
-PAINT_BORDER_LOOP:
-	ld (hl), a ; Left border
-	add hl, de
-	ld (hl), a ; Right border
-	inc hl
-	djnz PAINT_BORDER_LOOP
-
-
-	halt
-
-
-; Move the cursor
-SLOWLY_UPDATE_SCREEN:
-	ld e, $40
-CHAR_LOOP$:
-	ld b, $00
-	ld hl, VRAMBEG
-ROW_LOOP$:
-	ld c, $00
-COL_LOOP$:
-	call SET_CURSOR
-	ld (hl), e
-	inc hl
-;	ld a, 10
-;	call DELAY
+.loop:
 	call SLEEP
 
-	inc c
-	ld a, 80
-	cp c
-	jr nz, COL_LOOP$
-	inc b
-	ld a, 30
-	cp b
-	jr nz, ROW_LOOP$
-	inc e
-	jr CHAR_LOOP$
+	ld hl, -12
+	add hl, sp
+	ld sp, hl
 
-	halt
-
-
-; Set Cursor position
-; Arguments:	b = Row
-;				c = Column
-SET_CURSOR:
+	ld a, $ff
+	ld ($8200), a
+	ld d, h
+	ld e, l
+	ld (de), a
+	inc de
+	ld (de), a
+	inc de
+	ld (de), a
+	inc de
+	ld (de), a
+	dec de
+	
+.inner_loop:
 	push hl
 	push de
 	push bc
-	ld hl, 0
-	ld de, 80
-
-	ld a, 0
-	cp b
-	jr z, SET_CURSOR_LOOP_DONE$
-
-SET_CURSOR_LOOP$:
-	add hl, de
-	djnz SET_CURSOR_LOOP$
-SET_CURSOR_LOOP_DONE$:
-	add hl, bc
-
-	ld a, 14
-	out (VADDRPORT), a
-	ld a, h
-	out (VDATAPORT), a
-	out (OUTPORT), a
-	ld a, 15
-	out (VADDRPORT), a
-	ld a, l
-	out (VDATAPORT), a
+	ld a, ($8200)
+	inc a
+	ld ($8200), a
+	
+	ld bc, 12
+	call ITOA
+	
+	ld a, $20
+	ld (de), a
+	
+	call ECHO
+	ld a, 250
+	call DELAY
 	pop bc
 	pop de
 	pop hl
+	jr .inner_loop
+
+	
+
+	ld hl, 12
+	add hl, sp
+	ld sp, hl
+
+
+	halt
+	jr .loop
+
+
+ECHO:
+	ld ix, -IOCBSZ
+	add ix, sp
+	ld sp, ix
+
+	ld (ix+IOCBOP), WNBYTE
+	ld (ix+IOCBDN), VIDEO_DVC
+	ld (ix+IOCBBA + 1), h
+	ld (ix+IOCBBA), l
+	ld (ix+IOCBBL + 1), b
+	ld (ix+IOCBBL), c
+	call IOHDLR
+
+	ld ix, IOCBSZ
+	add ix, sp
+	ld sp, ix
 	ret
-
-
 
 SLEEP:
 	push bc
-	; Delay 1 second
+	; Delay 2 second
 	; Call DELAY 4 times at 250 ms each
-	ld b, 4
+	ld b, 8
 delay_loop:
 	ld a, 250
 	call DELAY
@@ -175,25 +119,30 @@ delay_loop:
 	pop bc
 	ret	
 
+	.include "constants.s"
 	.include "utils/timing.s"
 	.include "utils/ramtest.s"
+	.include "utils/video_driver.s"
+	.include "utils/device_handler.s"
+	.include "utils/strings.s"
 
-
-	.org $0700
-VIDEO_INIT_TBL:
-	.db $64, $50 ; Horizontal Total, Horizontal Displayed
-	.db $52, $0c ; Horizontal Sync Pos, Sync Width
-	.db $1f, $0c ; Vertical Total, Vertical Total Adjust
-	.db $1e, $1f ; Vertical Displayed, Vertical Sync Position
-	.db $00, $0f ; Interlace Mode, Maximum Scan Line Address
-	.db $47, $0f ; Cursor start + mode, Cursor end
-	.db $00, $00 ; Memory Start offset high, low
-	.db $00, $00 ; Cursor address high, low
-MESSAGE:
-	.data "0123456789abcdefghijABCDEFGHIJ!", $22 ,"#¤%&/()=", 0
+MESSAGES:
+	.dw MSG1
+	.dw MSG2
+	.dw MSG3
+	.dw MSG4
+MSG1:	.string "Hello, world!"
+MSG1_LEN: .equ $-MSG1
+MSG2:	.string "My name is Mats Fredriksson!"
+MSG2_LEN: .equ $-MSG2
+MSG3:	.string "This\nis\na\nmultiline\nstring."
+MSG3_LEN: .equ $-MSG3
+MSG4:	.string "Foo bar1234567689"
+MSG4_LEN: .equ $-MSG4
 
 	.org $07fe
 	.word $0000
+	.end
 
 
 

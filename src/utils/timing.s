@@ -1,37 +1,37 @@
-				    ; Title  Delay milliseconds
-				    ; Name:  Delay
-				    ; 
-				    ; Purpose: Delay from 1 to 256 milliseconds
-				    ; 
-				    ; Entry: Register A = Nuimber of ms to delay
-				    ;        A 0 equals 256 milliseconds
-				    ; 
-				    ; Registers used: AF
-				    ; 
+; Title  Delay milliseconds
+; Name:  Delay
+; 
+; Purpose: Delay from 1 to 256 milliseconds
+; 
+; Entry: Register A = Nuimber of ms to delay
+;        A 0 equals 256 milliseconds
+; 
+; Registers used: AF
+; 
 	      
-CPMS:	      .equ  10000	    
-					; 2000 = 2MHz Clock
-				    ; 4000 = 4MHz Clock
-				    ; 6000 = 6MHz Clock
+CPMS:	.equ	10000	    
+		; 2000 = 2MHz Clock
+		; 4000 = 4MHz Clock
+		; 6000 = 6MHz Clock
 
 
-	; Method:
-	; The routine is divided int o 2 parts. The call to
-	; the "DLY" routine delays e xactly 1 less than the
-	; required number of millise conds. The last interation
-	; takes into account the ove rhead to call "DELAY" and
-	; "DLY". This overhead is:
-	;    17 Cycles ==> call DELAY
-	;    11 Cycles ==> push bc
-	;    17 Cycles ==> call DLY
-	;     4 Cycles ==> dec a
-	;    11 Cycles ==> ret z
-	;     7 Cycles ==> ld b, (CP MS/100)-1
-	;    10 Cycles ==> pop bc
-	;    13 Cycles ==> ld a, (DE LAY)
-	;    10 Cycles ==> ret
-	;    ------
-	;   100 Cycles overhead
+; Method:
+; The routine is divided int o 2 parts. The call to
+; the "DLY" routine delays e xactly 1 less than the
+; required number of millise conds. The last interation
+; takes into account the ove rhead to call "DELAY" and
+; "DLY". This overhead is:
+;    17 Cycles ==> call DELAY
+;    11 Cycles ==> push bc
+;    17 Cycles ==> call DLY
+;     4 Cycles ==> dec a
+;    11 Cycles ==> ret z
+;     7 Cycles ==> ld b, (CP MS/100)-1
+;    10 Cycles ==> pop bc
+;    13 Cycles ==> ld a, (DE LAY)
+;    10 Cycles ==> ret
+;    ------
+;   100 Cycles overhead
 
 DELAY:
 				    ; Do all but the last millisecond

@@ -9,6 +9,8 @@ IOCBOP:		.equ  1		; IOCB Operation Number
 IOCBST:		.equ  2		; IOCB Status
 IOCBBA:		.equ  3		; IOCB Buffer Address
 IOCBBL:		.equ  5		; IOCB Buffer Length
+IOCBSZ:		.equ  7		; IO Control Block Size
+
 DTLNK:		.equ  0		; Device Table Link Field
 DTDN:		.equ  2		; Device Table device number
 DTSR:		.equ  3		; Beginning of Device Table Subroutines
@@ -115,7 +117,7 @@ IOHDLR:
 	ld a, (ix + IOCBOP)	; Get operation number from IOCB
 	ld b, a	    		; Save operation number
 	cp NUMOP	    	; Is operation number within limit?
-	jr nc, BADOP	    	; Jump if operation number too large
+	jr nc, .BADOP	    	; Jump if operation number too large
 
 	       			; Search device list for this device
 				; C = IOCB Device number
@@ -132,23 +134,23 @@ IOHDLR:
 				; Check if at end of device list (Link Field = 0000)
 	ld a, d			; Test link field
 	or e
-	jr z, BADDN		; Branch if no more device entries
+	jr z, .BADDN		; Branch if no more device entries
 	      
 				; Check if current entry is device in IOCB
 	ld hl, DTDN
 	add hl, de
 	ld a, (hl)
 	cp c			; Compare to requested device
-	jr z, FOUND		; Branch if device found
+	jr z, .FOUND		; Branch if device found
 
 				; Device not found, so advance to next device
 				;  table entry through link field
-				;  make current device = lin k
+				;  make current device = link
 	ex    de, hl		; Point to link field (First word)
 	ld    e, (hl)		; Get low byte of link
 	inc   hl
 	ld    d, (hl)		; Get high byte of link
-	jr    SRCHLP	    	; Check next entry in Device Table
+	jr    .SRCHLP	    	; Check next entry in Device Table
 
 				; Found Device, so vector to appropriate routine if any
 				; DE = Address of Device Table Entry
@@ -159,7 +161,7 @@ IOHDLR:
 	ld    h, 0	    	;
 	add   hl, hl	    	; Multiply by 2 for address entries
 	ld    bc, DTSR
-	add   hl, bc		; HL = OFfset to subroutine in
+	add   hl, bc		; HL = Offset to subroutine in
 				;   device table entry
 	add   hl, de	    	; HL = Address of subroutine
 	ld    a, (hl)	    	; Get subroutines's starting address
@@ -167,13 +169,13 @@ IOHDLR:
 	ld    h, (hl)
 	ld    l, a		; is starting address zero?
 	or    h
-	jr    z, BADOP		; Yes, jump (operation invalid)
-		  pop 	af
+	jr    z, .BADOP		; Yes, jump (operation invalid)
+	pop   af
 	jp    (hl)	    	; Goto subroutine
 	      
 .BADDN:	      
 	ld    a, DEVERR		; Error code - no such device
-	jr    EREXIT
+	jr    .EREXIT
 .BADOP:	      
 	ld    a, OPERR		; Error code - no such operation
 .EREXIT:	      

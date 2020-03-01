@@ -4,23 +4,21 @@
 
 ; Title:	STRLEN
 ; Purpose:	Returns length of null terminated string.
-; 		Can only check length of 255 bytes.
 ;
 ; Entry:	Register pair HL = Base address of string
-; 		Register pair C = Length of buffer
+; 		Register pair BC = Length of buffer
 ;
 ; Exit:		If the buffer contains a null character:
 ; 		   Carry flag = 0
-;  		   Register A = Length of string
+;  		   Register BC = Length of string
 ;		else
 ;		   Carry flag = 1
 
 STRLEN:
-	push bc
+	push hl
 	push de
-	
-	ld e, c		; Save the buffer length for later
-	ld b, 0		; Initialize bc to only be c
+
+;	ld de, bc
 	ld a, 0		; We search for the null value
 	cpir  		; Search the string
 
@@ -32,20 +30,21 @@ STRLEN:
 
 .found
 	jp pe, .string_is_shorter_than_buffer
-	ld a, e
-	dec a
+;	ld bc, de
+	dec bc
 	jr .done
 
 .string_is_shorter_than_buffer
-	ld a, e
-	sub c
-	dec a
-	
+;	ld hl, de
+	scf
+	sbc hl, bc
+	ccf
+;	ld bc, hl
 .done
 	pop de
-	pop bc
+	pop hl
 	ret
-
+	
 
 ; Title:	ATOI
 ; Purpose:	Creates a null terminated string representation
@@ -64,6 +63,8 @@ STRLEN:
 ;
 
 ITOA:
+	push hl
+	push bc
 	push de
 	ld e, a		; Save a for later
 
@@ -73,13 +74,16 @@ ITOA:
 	scf		; We have an empty buffer. Set flag and exit
 	jr .done
 
+.buffer_exists
+
 	dec bc		; Check if the size is one, which means we
-	    		; just set the null terminator and exists
+	    		; just set the null terminator and exits
 	ld a, b
 	or c
 	jr z, .add_null
 
-.buffer_exists
+	ld a, e		; Restore the original a
+
 			; Get the first hex character by shifting
 			; a right four times.
 	srl a
@@ -89,8 +93,8 @@ ITOA:
 
 	cp $a		; Check if the value is greater than or equal
 	   		; to $a
-	jr nc, .below_a_first
-	add 'A'-'0'	; Add the difference between '0' and 'A'
+	jp m, .below_a_first
+	add 'A'-'0'-10	; Add the difference between '0' and 'A'
 
 .below_a_first
 
@@ -109,8 +113,8 @@ ITOA:
 
 	cp $a		; Check if the value is greater than or equal
 	   		; to $a
-	jr nc, .below_a_second
-	add 'A'-'0'	; Add the difference between '0' and 'A'
+	jp m, .below_a_second
+	add 'A'-'0'-10	; Add the difference between '0' and 'A'
 
 .below_a_second
 
@@ -122,4 +126,6 @@ ITOA:
 	ld (hl), 0
 .done
 	pop de
+	pop bc
+	pop hl
 	ret

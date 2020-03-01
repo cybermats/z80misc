@@ -43,14 +43,14 @@ segment_ostat:
 				    ; Console output 1 byte
 segment_out:
 	      ld    e, a	    ; Save byte
-	      and    $f		    ; Mask lower 16 bytes
+	      or    $f		    ; Mask lower 16 bytes
 	      ld    (VIDRAM + 4), a
 	      ld    a, e
 	      rra		    ; Mask next 16 bytes
 	      rra
 	      rra
 	      rra
-	      and    $f
+	      or    $f
 	      ld    (VIDRAM + 3), a
 
 	      call  segment_show

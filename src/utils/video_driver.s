@@ -32,18 +32,20 @@ VIDEO_ROWS:	.equ	30
 ;		 2. Add device to Device List
 ;		 3. Initialize device
 ;
-; Entry:     Register A = Device ID
+; Entry:     Nothing
 ;
 ; Exit:	     Nothing
+; Registers used:	HL
 ; ***********************************************************
 
 SETUP_VIDEO_DRIVER:
-	ld (VIDEO_STATUS), NOERR
+	ld hl, VIDEO_STATUS
+	ld (hl), NOERR
 
 	; 1. Create Device Table Entry
 	call CREATEDTE	   ; Get empty Device Table Entry
 	push hl		   ; Save DTE
-	ld de, VIDEODEVICE ; Get Device Table Entry from ROM
+	ld de, VIDEO_DEVICE ; Get Device Table Entry from ROM
 	       		   ; and copy it to RAM
 	ex de, hl
 	ld bc, 17	   ; Size of DTE
@@ -56,7 +58,7 @@ SETUP_VIDEO_DRIVER:
 
 
 	; 3. Initialize operations
-	ld ix, -8	   ; Make room on the stack for IOCB
+	ld ix, -IOCBSZ	   ; Make room on the stack for IOCB
 	add ix, sp
 	ld sp, ix
 
@@ -64,7 +66,7 @@ SETUP_VIDEO_DRIVER:
 	ld (ix+IOCBDN), a  ; Device number in register a
 	call IOHDLR	   ; Call IO Handler
 
-	ld hl, 8	   ; Clean up stack
+	ld hl, IOCBSZ	   ; Clean up stack
 	add hl, sp
 	ld sp, hl
 
@@ -102,12 +104,13 @@ VD_INIT:
 	call RAMTST
 	jr nc, .init_6845
 	; Do error handling
-	ld (VIDEO_STATUS), RAMERR
+	ld hl, VIDEO_STATUS
+	ld (hl), RAMERR
 	jr .done
 	
 	; 3. Initialize operations
 .init_6845:
-	ld hl, VIDEO_INIT_TBL
+	ld hl, VD_INIT_TBL
 	ld b, 16
 	ld c, 0
 
@@ -121,9 +124,12 @@ VD_INIT:
 	djnz .loop
 
 	; 4. Set all video variables in memory
-	ld (CURSOR_COL), 0
-	ld (CURSOR_ROW), 0
-	ld (VIDEO_STATUS), DEVRDY
+	ld hl, CURSOR_COL
+	ld (hl), 0
+	ld hl, CURSOR_ROW
+	ld (hl), 0
+	ld hl, VIDEO_STATUS
+	ld (hl), DEVRDY
 .done:
 	pop af
 	pop bc
@@ -159,6 +165,7 @@ VD_OSTAT:
 ; Registers used:	 A
 ; ***********************************************************
 VD_OUT:
+	out (OUTPORT), a
 	push hl
 	push de
 	call GET_CURSOR_ADDR	; Get the cursor address
@@ -169,6 +176,7 @@ VD_OUT:
 	ld b, 0	 		; Move the cursor one step to the right
 	ld c, 1
 	call MOVE_CURSOR_REL
+	call UPDATE_CURSOR
 	ld a, NOERR
 	pop de
 	pop hl
@@ -177,6 +185,67 @@ VD_OUT:
 
 
 VD_OUTN:
+	call GET_CURSOR_ADDR
+	ld de, VRAMBEG
+	add hl, de
+	ex de, hl
+	
+	ld h, (ix + IOCBBA + 1)
+	ld l, (ix + IOCBBA)
+	ld b, (ix + IOCBBL + 1)
+	ld c, (ix + IOCBBL)
+.loop:
+	ld a, (hl)
+	or a		; Check end of string
+	jr z, .done
+	cp $0a		; Check new-line
+	jr z, .eol
+
+	push bc
+	ld b, 0
+	ld c, 1
+	call MOVE_CURSOR_REL
+	pop bc
+
+	ldi		; Copy data
+	jp pe, .loop
+.done:
+	call UPDATE_CURSOR
+	ret
+.eol:
+	push hl
+	call NEW_LINE	; Get the new frame buffer pointer
+	call GET_CURSOR_ADDR
+	ld de, VRAMBEG
+	add hl, de
+	ex de, hl
+	pop hl
+	inc hl
+	dec bc
+	ld a, b
+	or c
+	jr z, .done
+	jr .loop
+	
+
+	
+NEW_LINE:
+	xor a
+	ld (CURSOR_COL), a
+	ld a, (CURSOR_ROW)
+	inc a
+.check_row_overflow:
+	cp VIDEO_ROWS
+	jp m, .row_done
+	sub VIDEO_ROWS
+	jr .check_row_overflow
+.row_done:
+	ld (CURSOR_ROW), a		; Save CURSOR_ROW
+	ret
+	
+	
+	
+	
 
 ; ***********************************************************
 ; Title:	Get Cursor Memory Address
@@ -191,16 +260,18 @@ VD_OUTN:
 GET_CURSOR_ADDR:
 	push bc
 	push de
-	ld b, (CURSOR_ROW)
-	ld c, (CURSOR_COL)
-	ld hl, 0
-	ld de, 80
+	ld hl, CURSOR_ROW
+	ld b, (hl)
+	ld hl, CURSOR_COL
+	ld c, (hl)
 				; Calculate memory location of cursor
 	ld hl, 0
-	ld de, 80
 
-	ld a, 0
+	ld e, a			; Store a
+	xor a
 	or b
+	ld a, e
+	ld de, 80
 	jr z, .loop_done
 
 .loop:
@@ -212,22 +283,26 @@ GET_CURSOR_ADDR:
 	pop bc
 	ret
 
+
 ; ***********************************************************
 ; Title:	Move cursor relative
 ; Name: 	MOVE_CURSOR_REL
-; Purpose:	Move and update the cursor relative to the
+; Purpose:	Move the cursor relative to the
 ; 		current position.
+;
+;		!! Doesn't update the cursor in the video chip !!
+;
 ; Entry:	Register b = row delta
 ; 		Register c = columns delta
 ; Exit:		Cursor has been moved, and variables updated.
-; Registers used:      A
+; Registers used:      A, BC
 ; ***********************************************************
 MOVE_CURSOR_REL:
 ; Update and adjust the rows and columns
   	; Columns
 	ld a, (CURSOR_COL)
 	add c
-	jr nc, .check_col_overflow
+	jp p, .check_col_overflow
 				; We had a column move
 	       			; ending in the previous line
 	dec b
@@ -235,33 +310,32 @@ MOVE_CURSOR_REL:
 
 .check_col_overflow:
 	cp VIDEO_COLUMNS
-	jp p, .col_done
+	jp m, .col_done
 	inc b
 	sub VIDEO_COLUMNS
+	jr .check_col_overflow
 .col_done:
-	ld (CURSOR_COL), a
+	ld (CURSOR_COL), a		; Save CURSOR_COL
 
 	; Rows
-
 	ld a, (CURSOR_ROW)
 	add b
-	jr nc, .check_row_overflow
+	jp p, .check_row_overflow
 
 	add VIDEO_ROWS
 
 .check_row_overflow:
 	cp VIDEO_ROWS
-	jp p, .row_done
+	jp m, .row_done
 	sub VIDEO_ROWS
-
+	jr .check_row_overflow
 .row_done:
-	ld (CURSOR_ROW), a
-	call UPDATE_CURSOR
+	ld (CURSOR_ROW), a		; Save CURSOR_ROW
 	ret
 
 ; ***********************************************************
 ; Title:	Move cursor absolute
-; Name: 	MOVE_CURSOR_REL
+; Name: 	MOVE_CURSOR
 ; Purpose:	Move and update the cursor to a new
 ; 		position.
 ; Entry:	Register b = row
@@ -272,9 +346,10 @@ MOVE_CURSOR_REL:
 MOVE_CURSOR:
 	push hl		; Save status
 	push de
-
-	ld (CURSOR_ROW), b
-	ld (CURSOR_COL), c
+	ld hl, CURSOR_ROW
+	ld (hl), b
+	ld hl, CURSOR_COL
+	ld (hl), c
 
 	ld hl, 0	; Initialize the counters
 	ld de, VIDEO_COLUMNS
@@ -307,20 +382,24 @@ MOVE_CURSOR:
 UPDATE_CURSOR:
 	push hl
 	push de
+	push bc
 	push af
 ; Set the actual cursor to the correct location
+
+	ld hl, CURSOR_ROW
+	ld b, (hl)
+	ld hl, CURSOR_COL
+	ld c, (hl)
+
       	ld hl, 0
 	ld de, VIDEO_COLUMNS
-
-	ld b, (CURSOR_ROW)
-	ld c, (CURSOR_COL)
-
+	
 	ld a, 0
 	or b
 	jr z, .loop_done
 .loop:
 	add hl, de
-	djnz, .loop
+	djnz .loop
 .loop_done:
 	add hl, bc
 
@@ -336,6 +415,7 @@ UPDATE_CURSOR:
 	out (VDATAPORT), a
 	 
 	pop af
+	pop bc
 	pop de
 	pop hl
 	ret
@@ -343,7 +423,7 @@ UPDATE_CURSOR:
 
 VIDEO_DEVICE:  ; Device table entry for the Video Card
 	.dw	0	; Link Field
-	.db	1	; Device 1
+	.db	VIDEO_DVC ; Device 1
 	.dw	VD_INIT ; Video Driver Initialize
 	.dw	0	; No Video Driver Input Status
 	.dw	0	; No Video Driver Input 1 byte

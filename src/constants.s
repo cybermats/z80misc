@@ -26,6 +26,7 @@ SIOCMDB:  	.equ	$f3
 
 
 ; Memory Locations
+VARBEG:		.equ	$fd00
 STACK_START:	.equ	$fdff	; This gives $100 bytes for variables
 
 DVLST:		.equ	$fe00	; Device list has $100 bytes, each taking 17 bytes, i.e. 10 devices
@@ -39,3 +40,7 @@ VIDEO_STATUS:	.equ	$ff02
 ; Devices
 VIDEO_DVC:	.equ	$01
 KEYBOARD_DVC:	.equ	$02
+
+
+
+; Misc consts
