@@ -1,21 +1,16 @@
-RAMBEG:	      .equ  $8000	    ; Begin of RAM
-RAMEND:	      .equ  $ffff	    ; End of RAM
-VRAMBEG:	  .equ  $7000		; Begin VRAM
-VRAMEND:	  .equ  $7fff		; End VRAM
-OUTPORT:	  .equ  $00			; Parallel out port
-VADDRPORT:	  .equ  $80			; Video Address port
-VDATAPORT:	  .equ  $81			; Video Data port
+RAMBEG:		.equ	$8000	    ; Begin of RAM
+RAMEND:		.equ	$ffff	    ; End of RAM
+VRAMBEG:	.equ	$7000		; Begin VRAM
+VRAMEND:	.equ	$7fff		; End VRAM
+OUTPORT:	.equ	$00			; Parallel out port
+VADDRPORT:	.equ	$80			; Video Address port
+VDATAPORT:	.equ	$81			; Video Data port
 
-init:				    
+init:
 	ld    SP, RAMEND	    ; Set Stack to end of memory
-;	jp main
+	;	jp main
 
-
-
-
-
-	
-;	.org $0100
+	;	.org $0100
 	
 main:
 	; Prepare system

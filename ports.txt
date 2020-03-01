@@ -1,0 +1,9 @@
+$00-$0F		Parallel I/O
+			Keyboard
+$80			GFX Video Address port
+$81			GFX Video Data port
+
+$F0			SIO Data, Port A
+$F1			SIO Data, Port B
+$F2			SIO Command, Port A
+$F3			SIO Command, Port B
