@@ -1,5 +1,5 @@
 ASM=vasmz80_oldstyle
-ASMFLAGS=-Fbin -esc
+ASMFLAGS=-Fbin -esc -x
 PROGRAMMER=minipro
 EEPROM=AT28C25
 #EEPROM=CAT28C16A
@@ -7,12 +7,14 @@ EEPROM=AT28C25
 SRC_DIR=./src
 BIN_DIR=./build
 DEP_DIR=./build/deps
+LST_DIR=./build
 
 vpath %.s $(SRC_DIR)
 
 SOURCES = $(wildcard $(SRC_DIR)/*.s)
 BINS = $(SOURCES:$(SRC_DIR)/%.s=$(BIN_DIR)/%.bin)
 DEPS = $(SOURCES:$(SRC_DIR)/%.s=$(DEP_DIR)/%.d)
+LSTS = $(SOURCES:$(SRC_DIR)/%.s=$(LST_DIR)/%.lst)
 
 dir_guard=@mkdir -p $(@D)
 
@@ -31,7 +33,7 @@ $(DEP_DIR)/%.d: $(SRC_DIR)/%.s
 
 $(BIN_DIR)/%.bin: $(SRC_DIR)/%.s
 	$(dir_guard)
-	$(ASM) $(ASMFLAGS) -o $@ $<
+	$(ASM) $(ASMFLAGS) -L $(LST_DIR)/$*.lst -o $@ $<
 
 #seg_test: seg_test.bin
 #	$(PROGRAMMER) -p $(EEPROM) -w seg_test.bin
@@ -39,4 +41,4 @@ $(BIN_DIR)/%.bin: $(SRC_DIR)/%.s
 .PHONY: clean help
 
 clean:
-	rm -f $(BINS) $(DEPS)
+	rm -f $(BINS) $(DEPS) $(LSTS)
