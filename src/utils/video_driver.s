@@ -61,12 +61,12 @@ VD_CONFIGURE:
 ;		changes the location of the cursor.
 ; Entry:	Register A = Char to output
 ; Exit:		None
-; Registers used:	 A
+; Registers used:	 A, HL
 ; ***********************************************************
 VD_OUT:
-	out (OUTPORT), a
-	push hl
+;	out (OUTPORT), a
 	push de
+	push bc
 	call VD_GET_CURSOR_ADDR	; Get the cursor address
 	ld de, VRAMBEG		; Get the base memory for vram
 	add hl, de		; Get the memory for the new char
@@ -76,8 +76,8 @@ VD_OUT:
 	ld c, 1
 	call VD_MOVE_CURSOR_REL
 	call VD_UPDATE_CURSOR
+	pop bc
 	pop de
-	pop hl
 	ret
 
 
