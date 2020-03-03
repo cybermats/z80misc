@@ -11,5 +11,9 @@
 	endm
 	
 
-	
+	macro msg
+\1:
+	string \2
+\1_LEN:	equ $ - \1
+	endm
 	
