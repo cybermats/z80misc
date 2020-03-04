@@ -40,6 +40,8 @@ KB_START_PTR:	equ	$ff04
 KB_END_PTR:	equ	$ff06
 KB_BUFFER_BEG:	equ	$ff08
 KB_BUFFER_END:	equ	$ff10	; End of buffer, exclusive
+KB_PS2_STATE:	equ	$ff10
+KB_PS2_COUNT:	equ	$ff11
 
 
 ; Devices

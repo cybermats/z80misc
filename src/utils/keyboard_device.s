@@ -6,12 +6,19 @@
 ; Name: 	KD_CONFIGURE
 ; Purpose:	Configure and setup all variables
 ; 		used by the keyboard serial port.
-; Entry:	None
+;
+; Entry:	If setting up for interrupts:
+; 		   Register A = INT vector
+;		else
+;		   Register A = 0
 ; Exit:		None
+;
 ; Registers used:      A, HL
 ; ***********************************************************
 
 KD_CONFIGURE:
+	push de
+	ld e, a		; Save for later
 	; Channel reset
 	ld a, KD_WR0_REG0 | KD_WR0_CMD_CHNL_RST
 	out (SIOCMDB), a
@@ -19,7 +26,7 @@ KD_CONFIGURE:
 	ld a, KD_WR0_REG2
 	out (SIOCMDB), a
 	; Interrupt vector
-	ld a, $38;KEYBOARD_INT
+	ld a, e
 	out (SIOCMDB), a
 	; Ptr 4. Reset Ext/Status interrupts
 	ld a, KD_WR0_REG4 | KD_WR0_CMD_RST_EXT_STS_INTS
@@ -43,13 +50,23 @@ KD_CONFIGURE:
 	ld a, KD_WR0_REG1 | KD_WR0_CMD_RST_EXT_STS_INTS
 	out (SIOCMDB), a
 	; Receive interrupts On First Char only
-	ld a, KD_WR1_RX_INT_FIRST
+	ld a, e
+	or a	; Check if interrupt vector has been given
+	
+	ld a, KD_WR1_RX_INT_DIS		; Default to disabled
+	jr z, .no_ints ; Jump if no vector is specified
+	ld a, KD_WR1_RX_INT_FIRST	; Turn on ints
+.no_ints
 	out (SIOCMDB), a
 
-;	ld hl, KB_BUFFER_BEG
-;	ld (KB_START_PTR), hl
-;	ld (KB_END_PTR), hl
-
+	; Initialize the keyboard input buffer
+	ld hl, KB_BUFFER_BEG
+	ld (KB_START_PTR), hl
+	ld (KB_END_PTR), hl
+	xor a
+	ld (KB_PS2_STATE), a
+	ld (KB_PS2_COUNT), a
+	pop de
 	ret
 
 
@@ -64,37 +81,52 @@ KD_CONFIGURE:
 ; ***********************************************************
 
 KD_CALLBACK:
-;	push de
-;	push bc
 	in a, (SIODATAB)	; Fetch value from SIO
-	out (OUTPORT), a
-	jr .done
+	call KD_CONVERT		; Convert A to ASCII
+	jr c, .done		; This is not a key press we care about
+	
+	call KD_BUFFER_KEY	; Store ASCII in key buffer.
 
-
-	ld hl, (KB_END_PTR)	; Get end pointer addr
-
-	ld (hl), a		; Store value at KB_END_PTR
-
-	; Now we need to update the
-	; end pointer and make sure it overflows correctly.
-
-	inc hl
-	ld de, KB_BUFFER_END	; Get end of buffer
-
-	and a  			; Clear Carry for SBC
-	sbc hl, de
-	jr nz, .continue	; If the end ptr is same as end of buffer
-	ld hl, KB_BUFFER_BEG	; we should loop it around to the beginning
-
-.continue:
-	ld (KB_END_PTR), hl	; Store the end pointer back
-.done:
+.done
 	ld a, %00010000		; Pointer 0, Reset Ext/Status interrupts
-	out (SIOCMDB), a
-;	pop bc
-;	pop de
+	out (SIOCMDB), a	; Restore interrupts
 	ret
 
+; ***********************************************************
+; Title:	Put char into key buffer
+; Name: 	KD_BUFFER_KEY
+; Purpose:	Puts a char into the char buffer.
+; Entry:	Register A = ASCII Value of char
+; Exit:		None
+; Registers used:      A
+; ***********************************************************
+KD_BUFFER_KEY:
+	push hl
+	push de
+	
+	; KB_END_PTR points to the next available slot
+	; so we store the key value there.
+	ld de, (KB_END_PTR)	; Get end pointer addr
+	ld (de), a		; Store value at KB_END_PTR
+
+	; Now we need to update the end pointer and
+	; make sure it overflows correctly
+	inc de
+	ld hl, KB_BUFFER_END	; Get end of buffer (exclusive)
+	and a  			; Clear Carry for SBC
+	sbc hl, de
+	jr nz, .continue	; If the end ptr is the same as
+	       			; end of buffer we should loop
+				; around to the beginning
+	ld de, KB_BUFFER_BEG
+
+.continue
+	ld (KB_END_PTR), de	; Store the new end pointer
+
+	pop de
+	pop hl
+	ret
+	
 
 ; ***********************************************************
 ; Title:	Get values from the keyboard
@@ -112,12 +144,10 @@ KD_CALLBACK:
 ; ***********************************************************
 
 KD_NEXT_KVAL:
+	push bc
 	push de
-	ld hl, (KB_END_PTR)	; Get end pointer addr
-	ld e, l			; and store it in DE
-	ld d, h
-
-	ld hl, (KB_START_PTR)	; Get start pointer addr
+	ld de, (KB_START_PTR)	; Get end pointer addr
+	ld hl, (KB_END_PTR)	; Get start pointer addr
 
 	; Compare the two pointers.
 	; If they are the same, we will set Carry flag
@@ -131,22 +161,192 @@ KD_NEXT_KVAL:
 	jr .done
 
 .input_available:
-	ld a, (hl)		; We have values, so load the oldest value
-
-	inc hl			; Update the start ptr
-	ld de, KB_BUFFER_END	; But check if we need to loop around
+	ld a, (de)		; We have values, so load the oldest value
+	ld c, a			; Store it elsewhere
+	
+	inc de			; Update the start ptr
+	ld hl, KB_BUFFER_END	; But check if we need to loop around
 
 	and a  			; Clear Carry for SBC
 	sbc hl, de
 	jr nz, .update_ptr	; Jump if the start pointer isn't at the end
-	ld hl, KB_BUFFER_BEG	; It is at the end, so wrap around
+	ld de, KB_BUFFER_BEG	; It is at the end, so wrap around
 
 .update_ptr:
-	ld (KB_START_PTR), hl	; Update the start pointer
+	and a			; Clear carry
+	ld (KB_START_PTR), de	; Update the start pointer
 .done:
+	ld a, c
 	pop de
+	pop bc
 	ret
 
+; ***********************************************************
+; Title:	Poll the keyboard
+; Name: 	KD_POLL
+; Purpose:	Checks if there are any thing inbound from
+; 		the keyboard, and if there is it returns it.
+; Entry:	None
+; Exit:		If there are keys available:
+; 		   Register A = value
+;		   Carry flag = 0
+;		else
+;		   Carry flag = 1
+;
+; Registers used:      A
+; ***********************************************************
+KD_POLL:
+	ld a, KD_WR0_REG0	; Load status of keyboard
+	out (SIOCMDB), a
+	in a, (SIOCMDB)
+	and KD_RD0_DATA_AV	; Check if data is available
+	jr z, .done		; Jump if there is no data
+	in a, (SIODATAB)	; Read data
+	call KD_CONVERT		; Convert to ASCII
+	jr c, .done		; Jump if irrelevant key
+	call KD_BUFFER_KEY	; Store keys in buffer
+.done:
+	ret
+
+
+; ***********************************************************
+; Title:	Convert Scan Codes to ASCII
+; Name: 	KD_CONVERT
+; Purpose:	Converts PS/2 Scan Codes Set 2 to ASCII chars
+;
+; Entry:	Scan Code in Register A
+; Exit:		If the code can be converted
+; 		   Register A = ASCII
+;		   Carry flag = 0
+;		else
+;		   Carry flag = 1
+;
+; Registers used:      A
+; ***********************************************************
+KD_CONVERT:
+	push de
+	push hl
+	ld e, a			; Save A for later
+	
+	ld hl, KB_PS2_COUNT	; Increase counter
+	inc (hl)
+
+	and %11000000		; Test for longer sequences (two top bits)
+	cp %11000000
+;	bit 6, a
+	jr nz, .test_value	; Jump if this may be a character
+	cp $F0			; Test for Break
+	jr nz, .test_extended	; Jump if this is not a Break
+	ld a, (KB_PS2_STATE)
+	or KD_STATE_BREAK	; Set Break flag
+	ld (KB_PS2_STATE), a
+	jr .done
+
+.test_extended:
+	cp $E0			; Test for Extended
+	jr nz, .test_pause	; Jump if this is not a Extended
+	ld a, (KB_PS2_STATE)
+	or KD_STATE_EXTENDED	; Set Extended flag
+	ld (KB_PS2_STATE), a
+	jr .done
+
+.test_pause:
+	cp $E1			; Test for Extended
+	jr nz, .reset_flags	; Jump if this is not a Extended
+	ld a, (KB_PS2_STATE)
+	or KD_STATE_PAUSE	; Set Pause flag
+	ld (KB_PS2_STATE), a
+	jr .done
+
+.test_value:
+	ld a, (KB_PS2_STATE)
+	ld d, a			; Store STATE
+	and KD_STATE_PAUSE	; Test Pause flag
+	jr z, .test_break_set	; Jump if we're not in a Pause seq
+	ld a, (KB_PS2_COUNT)
+	and $8			; Check if we're at the end of the pause seq
+	jr nz, .reset_flags	; Reset flags and count
+	jr .done		; We're not in the end, just continue
+
+.test_break_set:
+	ld a, d
+	and KD_STATE_BREAK
+	jr z, .test_ext_set
+	ld a, e
+	cp $7c
+	jr nz, .reset_flags
+	jr .done
+
+.test_ext_set:
+	ld a, d
+	and KD_STATE_EXTENDED
+	jr z, .lookup
+	ld a, e
+	cp $12
+	jr nz, .reset_flags
+	jr .done
+
+.lookup:
+	ld a, e
+	cp $5f
+	jp p, .reset_flags
+	ld d, 0
+	ld hl, KD_SCANCODES
+	add hl, de
+
+	ld a, (hl)
+	or a
+	jr z, .reset_flags
+	jr .all_done
+
+.reset_flags:
+	xor a
+	ld (KB_PS2_STATE), a
+	ld (KB_PS2_COUNT), a
+.done:
+	scf
+.all_done:
+	pop hl
+	pop de
+	ret
+	
+KD_SCANCODES:	; Scan Code set 2
+
+
+	byte 0, 0, 0, 0, 0, 0, 0, 0
+	byte 0, 0, 0, 0, 0, 0, '`', 0
+	byte 0, 0, 0, 0, 0, 'Q', '1', 0
+	byte 0, 0, 'Z', 'S', 'A', 'W', '2', 0
+	byte 0, 'C', 'X', 'D', 'E', '4', '3', 0
+	byte 0, ' ', 'V', 'F', 'T', 'R', '5', 0
+	byte 0, 'N', 'B', 'H', 'G', 'Y', '6', 0
+	byte 0, 0, 'M', 'J', 'U', '7', '8', 0
+	byte 0, ',', 'K', 'I', 'O', '0', '9', 0
+	byte 0, '.', '/', 'L', ';', 'P', '-', 0
+	byte 0, 0, 0, 0, '[', '=', 0, 0
+	byte 0, 0, '\n', ']', 0, '\\', 0, 0
+
+KD_SCANCODES_LEN:    equ $ - KD_SCANCODES
+
+KD_STATE_BREAK			= %10000000
+KD_STATE_EXTENDED		= %01000000
+KD_STATE_PAUSE			= %00100000
+KD_STATE_CAPS			= %00010000
+KD_STATE_NUM			= %00001000
+KD_STATE_CTRL			= %00000100
+KD_STATE_ALT			= %00000010
+KD_STATE_SHIFT			= %00000001
+
+
+
+KD_RD0_BREAK			= %10000000
+KD_RD0_UNDERUN_EOM		= %01000000
+KD_RD0_CTS			= %00100000
+KD_RD0_SYNC_HUNT		= %00010000
+KD_RD0_DCD			= %00001000
+KD_RD0_TX_EMPTY			= %00000100
+KD_RD0_INT_PEND			= %00000010
+KD_RD0_DATA_AV			= %00000001
 
 KD_WR0_REG0			= %00000000
 KD_WR0_REG1 			= %00000001
@@ -226,4 +426,5 @@ KD_WR5_TX_EN			= %00001000
 KD_WR5_SDLC_CRC16		= %00000100
 KD_WR5_RTS			= %00000010
 KD_WR5_TX_CRC			= %00000001
+
 
