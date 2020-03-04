@@ -1,5 +1,5 @@
 ASM=vasmz80_oldstyle
-ASMFLAGS=-Fbin -esc -x
+ASMFLAGS=-Fbin -esc -x -quiet
 PROGRAMMER=minipro
 EEPROM=AT28C25
 #EEPROM=CAT28C16A
@@ -19,7 +19,7 @@ LSTS = $(SOURCES:$(SRC_DIR)/%.s=$(LST_DIR)/%.lst)
 dir_guard=@mkdir -p $(@D)
 
 all: $(BINS)
-	@echo "Building..."
+	@echo "Building all..."
 
 include $(DEPS)
 
