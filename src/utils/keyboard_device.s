@@ -187,11 +187,7 @@ KD_NEXT_KVAL:
 ; Purpose:	Checks if there are any thing inbound from
 ; 		the keyboard, and if there is it returns it.
 ; Entry:	None
-; Exit:		If there are keys available:
-; 		   Register A = value
-;		   Carry flag = 0
-;		else
-;		   Carry flag = 1
+; Exit:		Key, if present, is buffered.
 ;
 ; Registers used:      A
 ; ***********************************************************
@@ -206,6 +202,33 @@ KD_POLL:
 	jr c, .done		; Jump if irrelevant key
 	call KD_BUFFER_KEY	; Store keys in buffer
 .done:
+	ret
+
+; ***********************************************************
+; Title:	Poll the keyboard scan code
+; Name: 	KD_POLL_CODE
+; Purpose:	Checks if there are any thing inbound from
+; 		the keyboard, and if there is it returns it.
+; Entry:	None
+; Exit:		If there are keys available:
+; 		   Register A = value
+;		   Carry flag = 0
+;		else
+;		   Carry flag = 1
+;
+; Registers used:      A
+; ***********************************************************
+KD_POLL_CODE:
+	ld a, KD_WR0_REG0	; Load status of keyboard
+	out (SIOCMDB), a
+	in a, (SIOCMDB)
+	and KD_RD0_DATA_AV	; Check if data is available
+	jr z, .done		; Jump if there is no data
+	and a
+	in a, (SIODATAB)	; Read data
+	ret
+.done:
+	scf
 	ret
 
 
@@ -231,12 +254,14 @@ KD_CONVERT:
 	ld hl, KB_PS2_COUNT	; Increase counter
 	inc (hl)
 
-	and %11000000		; Test for longer sequences (two top bits)
-	cp %11000000
-;	bit 6, a
+	and $e0			; Test for longer sequences (two top bits)
+	cp $e0
 	jr nz, .test_value	; Jump if this may be a character
+
+	ld a, e
 	cp $F0			; Test for Break
 	jr nz, .test_extended	; Jump if this is not a Break
+
 	ld a, (KB_PS2_STATE)
 	or KD_STATE_BREAK	; Set Break flag
 	ld (KB_PS2_STATE), a
@@ -245,6 +270,7 @@ KD_CONVERT:
 .test_extended:
 	cp $E0			; Test for Extended
 	jr nz, .test_pause	; Jump if this is not a Extended
+
 	ld a, (KB_PS2_STATE)
 	or KD_STATE_EXTENDED	; Set Extended flag
 	ld (KB_PS2_STATE), a
@@ -253,6 +279,7 @@ KD_CONVERT:
 .test_pause:
 	cp $E1			; Test for Extended
 	jr nz, .reset_flags	; Jump if this is not a Extended
+
 	ld a, (KB_PS2_STATE)
 	or KD_STATE_PAUSE	; Set Pause flag
 	ld (KB_PS2_STATE), a
@@ -263,33 +290,41 @@ KD_CONVERT:
 	ld d, a			; Store STATE
 	and KD_STATE_PAUSE	; Test Pause flag
 	jr z, .test_break_set	; Jump if we're not in a Pause seq
+
+
 	ld a, (KB_PS2_COUNT)
 	and $8			; Check if we're at the end of the pause seq
 	jr nz, .reset_flags	; Reset flags and count
+
 	jr .done		; We're not in the end, just continue
 
 .test_break_set:
 	ld a, d
 	and KD_STATE_BREAK
 	jr z, .test_ext_set
+	
 	ld a, e
 	cp $7c
 	jr nz, .reset_flags
+
 	jr .done
 
 .test_ext_set:
 	ld a, d
 	and KD_STATE_EXTENDED
 	jr z, .lookup
+
 	ld a, e
 	cp $12
 	jr nz, .reset_flags
+	
 	jr .done
 
 .lookup:
 	ld a, e
 	cp $5f
 	jp p, .reset_flags
+
 	ld d, 0
 	ld hl, KD_SCANCODES
 	add hl, de

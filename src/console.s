@@ -1,8 +1,5 @@
 	include "utils/macro.s"
 
-; USE_VIDEO = 1
-USE_KEYBOARD = 1
-
 RESET:
 	di
 	ld a, $1
@@ -25,7 +22,7 @@ KEYBOARD_INT:
 	ld a, %00110000
 	out (SIOCMDB), a
 
-;	call KD_CALLBACK
+	call KD_CALLBACK
 	pop af
 	ei
 	reti
@@ -55,8 +52,6 @@ INIT:
 	ld a, $2			; Indicate that the system starts
 	out (OUTPORT), a
 
-	ifdef USE_VIDEO
-
 	; Do ram test
 	ld hl, VRAMBEG
 	ld de, VRAMEND - VRAMBEG
@@ -72,20 +67,14 @@ INIT:
 .ramtest_succ:
 .configure:
 
-	endif ; USE_VIDEO
-
 	ld a, $3		; Indicate that the system starts
 	out (OUTPORT), a
 
-	ifdef USE_VIDEO
 	call VD_CONFIGURE
-	endif ; USE_VIDEO
 	
 	ld a, $4		; Indicate that the video has been configured
 	out (OUTPORT), a
 
-	ifdef USE_VIDEO
-	
 	ld hl, MSG_INIT
 	ld bc, MSG_INIT_LEN
 	call VD_OUTN
@@ -93,19 +82,12 @@ INIT:
 	ld hl, MSG_KB1
 	ld bc, MSG_KB1_LEN
 	call VD_OUTN
-	
-	endif ; USE_VIDEO
 
-	ifdef USE_KEYBOARD
-	
+	ld a, 0			; Set no int vector and disable ints
 	call KD_CONFIGURE
 
-	endif ; USE_KEYBOARD
-	
 	ld a, $5		; Indicate that the keyboard has been configured
 	out (OUTPORT), a
-
-	ifdef USE_VIDEO
 
 	ld hl, MSG_KB2
 	ld bc, MSG_KB2_LEN
@@ -115,50 +97,44 @@ INIT:
 	ld bc, MSG_DONE_LEN
 	call VD_OUTN
 
-	endif ; USE_VIDEO
-
 	ld a, 250
 	call DELAY
 
 MAIN:
-	halt
-	jr MAIN
-
 	if 0
+	call KD_POLL_CODE
+	jr c, MAIN
 
-	call KD_NEXT_KVAL	; Get next character
-	jr c, .done		; Jump if no chars available
+	ld hl, $8200
+	ld bc, 8
+	call ITOA
 
-	call VD_OUT		; Output next char
-	jr MAIN
+	ld hl, $8200
+	ld bc, 8
+	call VD_OUTN
 
-	ifdef USE_VIDEO
-	
-	ld a, '.'
+	ld a, ' '
 	call VD_OUT
 
-	endif ; USE_VIDEO
+	jr MAIN
+	endif
+
+	call KD_POLL
 	
-.done:
-;	halt			; Wait for next interrupt
-	ld a, 250
-	call DELAY
+	call KD_NEXT_KVAL	; Get next character
+	jr c, MAIN		; Jump if no chars available
+
+	call VD_OUT		; Output next char
 	jr MAIN			; Loop back
 
 
-	endif ; 0
-
 	include "constants.s"
+	include "utils/macro.s"
 	include "utils/ramtest.s"
 	include "utils/timing.s"
-	
-	ifdef USE_VIDEO
 	include "utils/video_driver.s"
-	endif ; USE_VIDEO
-
-	ifdef USE_KEYBOARD
 	include "utils/keyboard_device.s"
-	endif ; USE_KEYBOARD
+	include "utils/strings.s"
 
 MESSAGES:
 	msg MSG_INIT, "Video initialized.\n"

@@ -29,7 +29,9 @@ MAIN:
 	
 	include "constants.s"
 	include "utils/keyboard_device.s"
+	include "utils/video_driver.s"
 	include "utils/timing.s"
+	include "utils/strings.s"
 
 	org $07fe
 	word $0000

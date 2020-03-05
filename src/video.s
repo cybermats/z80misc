@@ -27,6 +27,7 @@ INIT:
 	jr .ramtest_err
 
 .ramtest_succ:
+.configure:
 
 	ld a, $3		; Indicate that the system starts
 	out (OUTPORT), a
@@ -35,56 +36,29 @@ INIT:
 
 	ld a, $4		; Indicate that the video has been initialized
 	out (OUTPORT), a
-MAIN:
 
-.loop:
-	call SLEEP
-
-	salloc hl, 12
-
-	ld a, $ff
-	ld ($8200), a
-	ld d, h
-	ld e, l
-	ld a, 0
-	ld (de), a
-	inc de
-	ld (de), a
-	inc de
-	ld (de), a
-	inc de
-	ld (de), a
-	dec de
-	
-.inner_loop:
-	push hl
-	push de
-	push bc
-	ld a, ($8200)
-	inc a
-	ld ($8200), a
-	
-	ld bc, 12
-	call ITOA
-	
-	ld a, $20
-	ld (de), a
-	
+	ld hl, MSG1
+	ld bc, MSG1_LEN
 	call VD_OUTN
-	ld a, 250
+	ld hl, MSG2
+	ld bc, MSG2_LEN
+	call VD_OUTN
+	ld hl, MSG3
+	ld bc, MSG3_LEN
+	call VD_OUTN
+	ld hl, MSG4
+	ld bc, MSG4_LEN
+	call VD_OUTN
+	ld e, 0
+MAIN:
+	push de
+	ld a, 100
 	call DELAY
-	pop bc
 	pop de
-	pop hl
-	jr .inner_loop
-
-	
-
-	sfree hl, 12
-
-
-	halt
-	jr .loop
+	inc e
+	ld a, e
+	call VD_OUT
+	jr MAIN
 
 
 SLEEP:
@@ -110,13 +84,24 @@ MESSAGES:
 	dw MSG2
 	dw MSG3
 	dw MSG4
-MSG1:	string "Hello, world!"
+MSG1:	string "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
 MSG1_LEN: equ $-MSG1
-MSG2:	string "My name is Mats Fredriksson!"
+MSG2:	string "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z\n"
 MSG2_LEN: equ $-MSG2
-MSG3:	string "This\nis\na\nmultiline\nstring."
+MSG3:	string "0 1 2 3 4 5 6 7 8 9 \n"
 MSG3_LEN: equ $-MSG3
-MSG4:	string "Foo bar1234567689"
+MSG4:
+	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+
+	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+	data 0
+
 MSG4_LEN: equ $-MSG4
 
 	org $07fe
