@@ -375,14 +375,323 @@ PR6:	TSTC ',', PR7
 PR7:	call FIN	; in the list
 	jr PR2		; List continues
 PR8:	call CRLF	; List ends
-	jr FINISH
+	jp FINISH
 PR9:	call EXPR	; Evaluate the EXPR
 	push bc
 	call PRTNUM	; Print the value
 	pop bc
 	jr PR5		; More to print?
 
+; *
+; *********************************************************************
+; *
+; * *** REM *** IF *** INPUT *** & LET (& DEFLT) ***
+; *
+; * "REM" can be followed by anything and is ignored by TBI. TBI treats
+; * it like an "IF" with a false condition.
+; *
+; * "IF" is followed by an EXPR, as a condition and one or more commands
+; * (including other "IF"s) separated by semi-colons. Note that the
+; * word "THEN" is not used. TBI evaluates the EXPR. If it is non-zero,
+; * execution continues. If the expr is zero, the commands that
+; * follows are ignored and execution continues at the next line.
+; *
+; * "INPUT" command is like the "PRINT" command, and is followed by a
+; * list of items. If the item is a string in single or double quotes,
+; * or is an up-arrow, it has the same effect as a "PRINT". If an item
+; * is a vairaible, this variable name is printed out followed by a 
+; * colon. Then TBI waits for an EXPR to be typed in. The variable is
+; * then set to the value of this EXPR. If the variable is proceded by 
+; * a string (again in single or double quotes), the string will be
+; * printed followed by a colon. TBI then waits for input EXPR and
+; * set the variable to the value of the EXPR.
+; *
+; * If the input EXPR is invalid, TBI will print "WHAT?", "HOW?" or
+; * "SORRY" and reprint the prompt and redo the input. The execution
+; * will not terminate unless you type CONTROL-C. This is handled in
+; * "INPERR".
+; *
+; * "LET" is followed by a list of items separated by command. Each item
+; * consists of a variable, an equal sign, and an EXPR. TBI evaluates
+; * the EXPR and set the variable to that value. TBI will also handle
+; * "LET" command without the word "LET". This is done by "DEFLT".
+; *
 
+REM:	ld hl, 0	; *** REM ***
+	jr IF1 		; This is like "IF 0"
+IFF:	call EXPR	; *** IF ***
+IF1:	ld a, h		; Is the EXPR=0?
+	or l
+	jp nz, RUNSML	; No, continue
+	call FNDSKP	; Yes, skip rest of line
+	jp nc, RUNTSL	; and run the next line
+	jp RSTART	; if NC next, re-start
+
+INPERR:	ld hl, (STKINP)	; *** INPERR ***
+	ld sp, hl	; Restore old SP
+	pop hl 		; and old "CURRNT"
+	ld (CURRNT), hl
+	pop de		; and old text pointer
+	pop de		; redo input
+
+INPUT:	ds 0
+IP1:	push de		; Save in case of error
+	call QTSTG	; Is next item a string?
+	jr IP8		; No
+IP2:	call TSTV	; Yes, but followed by a
+	jr c, IP5	; variable? No.
+IP3:	call IP12
+	ld de, BUFFER	; Pointes to buffer
+	call EXPR	; Evaluate input
+	call ENDCHK
+	pop de		; OK, Get old HL
+	ex de, hl
+	ld (hl), e	; Save value in Var.
+	inc hl
+	ld (HL), d
+IP4:	pop hl		; Get old "CURRNT"
+	ld (CURRNT), hl
+	pop de		; And old Text Pointer
+IP5:	pop af		; Purge junk in stack
+IP6:	TSTC ',', IP7	; Is next character ","?
+	jr INPUT  	; Yes, more items
+IP7:	jp FINISH
+IP8:	push de		; Save for PRTSTG
+	call TSTV	; Must be variable now
+	jr nc, IP11
+IP10:	jp QWHAT	; "WHAT?" it is not?
+IP11:	ld b, e
+	pop de
+	call PRTCHS	; Print those as prompt
+	jr IP3		; Yes, input variable
+IP12:	pop bc		; Return address
+	push de		; Save text pointer
+	ex de, hl
+	ld hl, (CURRNT)	; Also save "CURRNT"
+	push hl
+	ld hl, IP1	; A negative number
+	ld (CURRNT), hl	; as a flag
+	ld hl, 0     	; Save SP too
+	add hl, sp
+	ld (STKINP), hl	;
+	push de	     	; Old HL
+	ld a, ' '	; Print a space
+	push bc
+	jp GETLN	; And get a line
+DEFLT:	ld a, (de)	; *** DEFLT ***
+	cp '\n'		; Empty line is ok
+	jr z, LT4	; Else it is "LET"
+LET:	ds 0  		; *** LET ***
+LT2:	call SETVAL
+LT3:	TSTC ',',LT4	; Set value to var.
+	jr LET		; Item by item
+LT4:	jp FINISH	; Until finish
+
+; *
+; *********************************************************************
+; *
+; * *** EXPR ***
+; *
+; * "EXPR" evaluates arithmetical or logical expressions.
+; * <EXPR>::=<EXPR1>
+; *	     <EXPR1><REL.OP.><EXPR1>
+; * Where <REL.OP.> is one of the operators in TAB6 and the result of
+; * these operations is 1 if True and 0 if False.
+; * <EXPR1>::=(+ or -)<EXPR2>(+ or -<EXPR2>)(....)
+; * where () are optional and (....) are optional repeats.
+; * <EXPR2>::=<EXPR3>(<* or /><EXPR3>)(....)
+; * <EXPR3>::=<VARIABLE>
+; *	      <FUNCTION>
+; *	      <EXPR>
+; * <EXPR> is recursive so that variable '@' can have an <EXPR> as
+; * index, functions can have an <EXPR> as arguments, and
+; * <EXPR3> can be an <EXPR> in paranthese.
+; *
+
+EXPR:	call EXPR1	; *** EXPR ***
+	push hl		; Save <EXPR1> value
+	ld hl, TAB6-1	; Lookup REL.OP.
+	jp EXEC		; Go do it
+XPR1:	call XPR8	; REL.OP.">="
+	ret c		; No, return HL=0
+	ld l, a		; Yes, return HL=1
+	ret
+XPR2:	call XPR8	; REL.OP."#"
+	ret z		; False, return hl=0
+	ld l, a		; True, return HL=1
+	ret
+XPR3:	call XPR8	; REL.OP.">"
+	ret z		; False
+	ret c		; Also false, HL=0
+	ld l, a		; True, HL=1
+	ret
+XPR4:	call XPR8	; REL.OP."<="
+	ld l, a		; set HL=1
+	ret z 		; Rel True, return
+	ret c
+	ld l, h		; else set HL=0
+	ret
+XPR5:	call XPR8	; REL.OP."="
+	ret nz		; False, return HL=0
+	ld l, a		; Else set HL=1
+	ret
+
+XPR6:	call XPR8	; REL.OP."<"
+	ret nc		; False, return HL=0
+	ld l, a		; else set HL=1
+	ret
+XPR7:	pop hl		; not REL.OP.
+	ret
+XPR8:	ld a, c		; Subroutine for all
+	pop hl		; REL.OP.'s
+	pop bc
+	push hl		; Reverse top of stack
+	push bc
+	ld c, a
+	call EXPR1	; Get 2nd <EXPR1>
+	ex de, hl	; Value in DE now
+	ex (sp), hl	; 1st <EXPR1> in HL
+	call CKHLDE	; Compare 1st with 3nd
+	pop de		; restore text pointer
+	ld hl, 0	; set HL=0, A=1
+	ld a, 1
+	ret
+
+EXPR1:	TSTC '-', XP11	; Negative sign?
+	ld hl, 0  	; Yes, fake "0-"
+	jr XP16		; Treat like subtract
+XP11:	TSTC '+', XP12	; Positive sign? Ignore
+XP12:	call EXPR2	; 1st <EXPR2>
+XP13:	TSTC '+', XP15	; Add?
+	push hl	  	; Yes, save value
+	call EXPR2	; Get 2nd <EXPR2>
+XP14:	ex de, hl	; 2nd in DE
+	ex (sp), hl	; 1st in HL
+	ld a, h	 	; Compare sign
+	xor d
+	ld a, d
+	add hl, de
+	pop de		; Restore text pointer
+	jp m, XP13	; 1st 2nd sign differ
+	xor h 		; 1st 2nd sign equal
+	jp p, XP13	; So is result
+	jp QHOW		; else we have overflow
+XP15:	TSTC '-', XPR9	; Subtract?
+XP16:	push hl	  	; Yes, save 1st <EXPR2>
+	call EXPR2	; Get 2nd <EXPR2>
+	call CHGSGN	; Negate
+	jr XP14		; And add them
+
+EXPR2:	call EXPR3	; Get 1st <EXPR3>
+XP21:	TSTC '*', XP24	; Multiply?
+	push hl	  	; Yes, save 1st
+	call EXPR3	; and get 2nd <EXPR3>
+	ld b, 0		; Clear b for sign
+	call CHKSGN	; Check sign
+	ex (sp), hl	; 1st in HL
+	call CHKSGN	; Check sign of 1st
+	ex de, hl
+	ex (sp), hl
+	ld a, h		; is HL > 255 ?
+	or a
+	jr z, XP22	; No
+	ld a, d		; Yes, how about DE
+	or d
+	ex de, hl	; Put smaller in HL
+	jp nz, AHOW	; Also >, will overflow
+XP22:	ld a, l		; This is dumb
+	ld hl, 0	; Clear result
+	or a   		; add and count
+	jr z, XP25
+XP23:	add hl, de
+	jp z, AHOW	; Overflow
+	dec a
+	jr nz, XP23
+	jr XP25		; Finished
+XP24:	TSTC '/', XPR9	; Divide?
+	push hl	  	; Yes, save 1st <EXPR3>
+	call EXPR3	; and get 2nd one
+	ld b, 0		; Clear B for sign
+	call CHKSGN	; Check sign of 2nd
+	ex (sp), hl	; Get 1st in HL
+	call CHKSGN	; Check sign of 1st
+	ex de, hl
+	ex (sp), hl
+	ex de, hl
+	ld a, d		; Divide by 0?
+	or e
+	jp z, AHOW	; Say "HOW?"
+	push bc		; Else save sign
+	call DIVIDE	; Use subroutine
+	ld h, b		; Result in HL now
+	ld l, c		;
+	pop bc		; Get sign back
+XP25:	pop de		; and text pointer
+	ld a, h		; HL must BE +
+	or a
+	jp m, QHOW	; Else it is overflow
+	ld a, b
+	or a
+	call m, CHGSGN	; Change sign if needed
+	jr XP21		; Look for more terms
+EXPR3:	ld hl, TAB3-1	; Find function in TAB3
+	jp EXEC		; and go do it
+NOTF:	call TSTV	; No, not a function
+	jr c, XP32	; Nor a variable
+	ld a, (hl)	; Variable
+	inc hl
+	ld h, (hl)	; Value in hl
+	ld l, a
+	ret
+XP32:	call TSTNUM	; Or is it a number
+	ld a, b		; # of digit
+	or a
+	ret nz		; ok
+PARN:	TSTC '(', XPR0	; No digit, ust be
+PARNP:	call EXPR 	; "(EXPR)"
+	TSTC ')', XPR0
+XPR9:	ret
+XPR0:	jp QWHAT	; Else say: "WHAT?"
+
+RND:	call PARN	; *** RND(EXPR) ***
+	ld a, h		; EXPR must be +
+	or a
+	jp m, QHOW
+	or l		; and non-zero
+	jp z, QHOW
+	push de		; Save both
+	push hl
+	ld hl, (RANPNT)	; Get memory as random
+	ld de, (RANEND)
+	call COMP
+	jr c, RA1	; Wrap around if last
+	ld hl, (BOTROM)
+RA1:	ld e, (hl)
+	inc hl
+	ld d, (hl)
+	ld (RANPNT), hl
+	pop hl
+	ex de, hl
+	push bc
+	call DIVIDE	; RND(N)=MOD(M, N)+1
+	pop bc
+	pop de
+	inc hl
+	ret
+
+ABS:	call PARN	; *** ABS(EXPR) ***
+	dec de
+	call CHKSGN	; Check sign
+	inc de
+	ret
+
+SIZE:	ld hl, (TXTUNF)	; *** SIZE ***
+	push de		; Get the number of free
+	ex de, hl	; bytes between 'TXTUNF'
+	ld hl, (TXTLMT)	; and "TXTLMT"
+	call SUBDE
+	pop de
+	ret
 
 ; *
 ; *********************************************************************
