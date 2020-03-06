@@ -1,5 +1,5 @@
 ASM=vasmz80_oldstyle
-ASMFLAGS=-Fbin -esc -x -quiet
+ASMFLAGS=-Fbin -esc -x -quiet -maxerrors=0
 PROGRAMMER=minipro
 EEPROM=AT28C25
 #EEPROM=CAT28C16A
