@@ -18,6 +18,11 @@
 	CALL TSTCH
 	endmacro
 
+dwa:	macro 
+	db (\1 >> 8) ; TODO + 128
+	db \1 & $ff
+	endmacro
+
 
 ; *********************************************************************
 ; *
@@ -45,7 +50,7 @@ VARBGN:	ds 2*26	; TB Variables A-Z
 CURRNT:	ds 2	; Points to current line
 STKGOS:	ds 2	; Saves SP in 'GOSUB'
 VARNXT:	ds 0	; Temp storage
-SKTINP:	ds 2	; Saves SP in 'INPUT'
+STKINP:	ds 2	; Saves SP in 'INPUT'
 LOPVAR:	ds 2	; 'FOR' loop save area
 LOPINC:	ds 2	; Increment
 LOPLMT:	ds 2	; Limit
@@ -381,6 +386,184 @@ PR9:	call EXPR	; Evaluate the EXPR
 	call PRTNUM	; Print the value
 	pop bc
 	jr PR5		; More to print?
+
+; *
+; *********************************************************************
+; *
+; * *** GOSUB *** & RETURN ***
+; *
+; * "GOSUB EXPR:" or "GOSUB EXPR (CR)" is like the "GOTO" command,
+; * except that the current text pointer, stack pointer etc. are saved so
+; * that execution can be continued after the subroutine "RETURN". In
+; * order that "GOSUB" can be nested (and even recursive), the save area
+; * must be stacked. The stack pointer is saved in "STKGOS". The old
+; * "STKGOS" is saved in the stack. If we are in the main routine,
+; * "STKGOS" is zero (this was done by the "MAIN" section of the code),
+; * but we still save it as a flag for no further "RETURN"s.
+; *
+; * "RETURN(CR)" undos everythign that "GOSUB" did, and this return the 
+; * execution to the command after the most recent "GOSUB". If "STKGOS"
+; * is zero, it indicates th we never had a "GOSUB" and is this an 
+; * error.
+; *
+
+GOSUB:	call PUSHA	; Save the current "FOR"
+	call EXPR	; parameters
+	push de		; and text pointer
+	call FNDLN	; Find the target line
+	jp nz, AHOW	; Not there. Say "HOW?"
+	ld hl, (CURRNT)	; Save old
+	push hl		; "CURRNT" old "STKGOS"
+	ld hl, (STKGOS)
+	push hl
+	ld hl, 0	; and load new ones
+	ld (LOPVAR), hl
+	add hl, sp
+	ld (STKGOS), hl
+	jp RUNTSL	; Then run that line
+RETURN:	call ENDCHK	; There must be a CR
+	ld hl, (STKGOS)	; Old stack pointer
+	ld a, h		; 0 means not exist
+	or l
+	jp z, QWHAT	; So, we say: "WHAT?"
+	ld sp, hl	; else, restore it
+RESTOR:	pop hl
+	ld (STKGOS), hl	; and the old "STKGOS"
+	pop hl
+	ld (CURRNT), hl	; and the old "CURRNT"
+	pop de	     	; old text pointer
+	call POPA	; old "FOR" parameters
+	jp FINISH
+
+; *
+; *********************************************************************
+; *
+; * *** FOR *** & NEXT ***
+; *
+; * "FOR" has two forms: "FOR VAR=EXP1 TO EXP2 STEP EXP3" and "FOR
+; * VAR=EXP1 TO EXP2". The second form means the same thing as the first
+; * form with EXP3=1. (I.e. with a step of +1.) TBI will find the 
+; * variable VAR. and set its value to the current value of EXP1. It
+; * also evaluates EXP2 and EXP3 and save all these together with the
+; * text pointer etc. in the "FOR" save area, which consists of
+; * "LOPVAR", "LOPINC", "LOPLMT", "LOPLN" and "LOPPT". If there is
+; * already something in the save area (this is indicated by a
+; * non-zero "LOPVAR"), then the old save area is saved in the stack
+; * before the new one overwrites it. TBI will then dig in the stack
+; * and find out if this same variable was used in another currently
+; * active "FOR" loop. If that is the case, then the old "FOR" loop is
+; * deactivated. (Purged from the stack..)
+; *
+; * "NEXT VAR" serves as the logical (not necessarilly physical) end of
+; * the "FOR" loop. The control variable VAR. is checked with the 
+; * "LOPVAR". If they are not the same, TBI digs in the stack to find
+; * the right one and purges all those that did not match. Either way,
+; * TBI then adds the "STEP" to that variable and check the result with
+; * the limit. If it is within the limit, control loops back to the
+; * command following the "FOR". If outside the limit, the save area is
+; * purged and execution continues.
+; *
+
+FOR:	call PUSHA	; Save the old save area
+	call SETVAL	; Set the control var
+	dec hl		; HL is its address
+	ld (LOPVAR), hl	; Save that
+	ld hl, TAB4-1	; Use "EXEC" to look
+	jp EXEC		; for the word "TO"
+FR1:	call EXPR	; Evaluate the limit
+	ld (LOPLMT), hl	; Save that
+	ld hl, TAB5-1	; Use "EXEC" to look
+	jp EXEC		; for the work "STEP"
+FR2:	call EXPR	; Found it, get step
+	jr FR4
+FR3:	ld hl, 1	; Not found, set to 1
+FR4:	ld (LOPINC), hl	; Save that to
+	ld hl, (CURRNT)	; Save current line #
+	ld (LOPLN), hl	;
+	ex de, hl   	; And text pointer
+	ld (LOPPT), hl	;
+	ld bc, 10   	; dig into stack to
+	ld hl, (LOPVAR)	; find "LOPVAR"
+	ex de, hl
+	ld h, b
+	ld l, b		; HL=0 now
+	add hl, sp	; Here is the stack
+	jr FR6
+FR5:	add hl, bc	; Each level is 10 deep
+FR6:	ld a, (hl)	; Get that old "LOPVAR"
+	inc hl
+	or a, (hl)
+	jr z, FR7	; 0 says no more in it
+	ld a, (hl)
+	dec hl
+	cp d		; same as this one?
+	jr nz, FR5
+	ld a, (hl)	; The other half?
+	cp e
+	jr nz, FR5
+	ex de, hl	; Yes, found one
+	ld hl, 0
+	add hl, sp	; Try to move SP
+	ld b, h
+	ld c, l
+	ld hl, 10
+	add hl, de
+	call MVDOWN	; and purge 10 words
+	ld sp, hl	; in the stack
+FR7:	ld hl, (LOPPT)	; Job done, restore DE
+	ex de, hl
+	jp FINISH	; and continue
+
+NEXT:	call TSTV	; Get address of var.
+	jp c, QWHAT	; No variable, "WHAT?"
+	ld (VARNXT), hl	; Yes, save it
+NX1:	push de	     	; Save text pointer
+	ex de, hl
+	ld hl, (LOPVAR)	; Get var in "FOR"
+	ld a, h
+	or l		; 0 says never had one
+	jp AWHAT	; so we ask: "WHAT?"
+	call COMP	; else we check them
+	jr z, NX2	; OK, they agree
+	pop de		; No, let's see
+	call POPA	; purge current loop
+	ld hl, (VARNXT)	; and pop one level
+	jr NX1 		; go check again
+NX2:	ld e, (hl)	; Come here when agreed
+	inc hl
+	ld d, (hl)	; DE= value of VAR.
+	ld hl, (LOPINC)
+	push hl
+	ld a, h
+	xor d		; S=Sign differ
+	ld a, d		; A=Sign of DE
+	add hl, de	; Add one step
+	jp m, NX3	; cannot overflow
+	xor h 		; May overflow
+	jp m, NX5	; And it did
+NX3:	ex de, hl
+	ld hl, (LOPVAR)	; Put it back
+	ld (hl), e
+	inc hl
+	ld (hl), d
+	ld hl, (LOPLMT)	; HL=limit
+	pop af 		; old hl
+	or a
+	jp p, NX4	; step > 0
+	ex de, hl	; step < 0
+NX4:	call CKHLDE	; Compare with limit
+	pop de		; restore text pointer
+	jr c, NX6	; outside limit
+	ld hl, (LOPLN)	; within limit, go
+	ld (CURRNT), hl	; back to the saved
+	ld hl, (LOPPT)	; "CURRNT" and text
+	ex de, hl	; pointer
+	jp FINISH
+NX5:	pop hl		; overflow, purge
+	pop de		; garbage in stack
+NX6:	call POPA	; Purge this loop
+	jp FINISH
+	
 
 ; *
 ; *********************************************************************
@@ -1204,3 +1387,89 @@ PRTLN:	ld a, (de)	; *** PRTLN ***
 	call OUTCH
 	ret
 
+TAB1:	db "LIST" : dwa LIST	; Direct Commands
+	db "NEW" : dwa NEW
+	db "RUN" : dwa RUN
+
+TAB2:
+	db "NEXT" : dwa NEXT	; Direct/Statement
+	db "LET" : dwa LET
+	db "IF" : dwa IFF
+	db "GOTO" : dwa GOTO
+	db "GOSUB" : dwa GOSUB
+	db "RETURN" : dwa RETURN
+	db "REM" : dwa REM
+	db "FOR" : dwa FOR
+	db "INPUT" : dwa INPUT
+	db "PRINT" : dwa PRINT
+	db "STOP" : dwa STOP
+	db 0 : dwa MOREC
+
+MOREC:	jp DEFLT		; *** JMP USER-COMMAND ***
+
+TAB3:	db "RND" : dwa RND		; Functions
+	db "ABS" : dwa ABS
+	db "SIZE" : dwa SIZE
+	db 0 : dwa MOREF
+MOREF:	jp NOTF			; *** JMP USER-FUNCTION ***
+
+TAB4:
+	db "TO" : dwa FR1		; "FOR" command
+	db 0 : dwa QWHAT
+TAB5:
+	db "STEP" : dwa FR2	; "FOR" command
+	db 0 : dwa FR3
+
+TAB6:	db ">=" : dwa XPR1		; Relation operators
+	db "#" : dwa XPR2
+	db ">" : dwa XPR3
+	db "=" : dwa XPR5
+	db "<=" : dwa XPR4
+	db "<" : dwa XPR6
+	db 0 : dwa XPR7
+RANEND:	EQU $
+
+
+; *
+; *********************************************************************
+; *
+; * *** Input Output Routines ***
+; *
+; * User must varify and/or modify these routines
+; *********************************************************************
+; *
+; * *** CRLF *** OUTCH ***
+; *
+; * "CRLF" will output a CR. Only A & flags may change at return
+; *
+; * "OUTCH" will output the character in A. If the character is CR, it
+; * will also output a LF and three nulls. Flags may change at return,
+; * other registers do not.
+; *
+; * *** CHKIO *** GETLN ***
+; *
+; * "CHECKIO" checks to see if there is any input. If no input, it
+; * returns with Z flag. If there is input, it further checks whether
+; * input is CONTROL-C. If not CONTROL-C, it returns the character in A
+; * with Z flag cleared. If input is CONTROL.C, CHKIO jumps to "INIT"
+; * and will not return. Only A & flags may change at return.
+; *
+; * "GETLN" reads a input line into "BUFFER". It first prompt the 
+; * character in A (given by the caller), then it fills the buffer
+; * and echos. Back-space is used to delete the last character (if there
+; * is one). CR signals the end of the line, and cause "GETLN" to
+; * return. When buffer is full, "GETLN" will accept back-space or CR
+; * only and will ignore (and will not echo) other characters. After
+; * the input line is stored in the buffer, two more bytes of FF are
+; * also stored and DE points to the last FF. A & flags are also 
+; * changed at return.
+; *
+; *
+
+CRLF:	ld a, '\n'	; CR in A
+OUTCH:	ret
+CHKIO:	ret
+GETLN:	ret
+
+
+include "utils/video_driver.s"
