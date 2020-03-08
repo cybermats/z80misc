@@ -64,7 +64,9 @@ VD_CONFIGURE:
 ; Registers used:	 A, HL
 ; ***********************************************************
 VD_OUT:
-;	out (OUTPORT), a
+	cp '\n'			; Check for newline
+	jr z, .eol
+	
 	push de
 	push bc
 	call VD_GET_CURSOR_ADDR	; Get the cursor address
@@ -80,6 +82,9 @@ VD_OUT:
 	pop de
 	ret
 
+.eol
+	call VD_NEW_LINE
+	ret
 
 
 ; ***********************************************************
