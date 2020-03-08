@@ -79,7 +79,6 @@ KD_CONFIGURE:
 ; Exit:		None
 ; Registers used:      A, HL
 ; ***********************************************************
-
 KD_CALLBACK:
 	in a, (SIODATAB)	; Fetch value from SIO
 	call KD_CONVERT		; Convert A to ASCII
@@ -126,7 +125,6 @@ KD_BUFFER_KEY:
 	pop de
 	pop hl
 	ret
-	
 
 ; ***********************************************************
 ; Title:	Get values from the keyboard
@@ -142,7 +140,6 @@ KD_BUFFER_KEY:
 ;
 ; Registers used:      A, HL
 ; ***********************************************************
-
 KD_NEXT_KVAL:
 	push bc
 	push de
@@ -205,6 +202,31 @@ KD_POLL:
 	ret
 
 ; ***********************************************************
+; Title:	Poll the keyboard ASCII char
+; Name: 	KD_POLL_CHAR
+; Purpose:	Checks if there are any thing inbound from
+; 		the keyboard, and if there is it returns it.
+; Entry:	None
+; Exit:		If there are keys available:
+; 		   Register A = value
+;		   Carry flag = 0
+;		else
+;		   Carry flag = 1
+;
+; Registers used:      A
+; ***********************************************************
+KD_POLL_CHAR:
+	ld a, KD_WR0_REG0	; Load status of keyboard
+	out (SIOCMDB), a
+	in a, (SIOCMDB)
+	and KD_RD0_DATA_AV	; Check if data is available
+	ret z
+	in a, (SIODATAB)	; Read data
+	call KD_CONVERT
+	ret
+
+
+; ***********************************************************
 ; Title:	Poll the keyboard scan code
 ; Name: 	KD_POLL_CODE
 ; Purpose:	Checks if there are any thing inbound from
@@ -230,7 +252,6 @@ KD_POLL_CODE:
 .done:
 	scf
 	ret
-
 
 ; ***********************************************************
 ; Title:	Convert Scan Codes to ASCII
