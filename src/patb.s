@@ -33,42 +33,95 @@ dwa:	macro
 ; * F000-F7FF are for TBI code
 ; *
 
-BOTSCR:	equ	$0080
-TOPSCR: equ	$0200
-BOTRAM:	equ	$2000
-DFTLMT:	equ	$4000
-BOTROM:	equ	$f000
+BOTSCR:	equ	$8000
+TOPSCR: equ	$9fff
+BOTRAM:	equ	$a000
+DFTLMT:	equ	$f000
+BOTROM:	equ	$0016
+VRAMBEG:	equ	$7000
+VRAMEND:  	equ	$7fff
+
+
+; Misc constants
+
+VIDEO_COLUMNS:	equ	80
+VIDEO_ROWS:	equ	30
+
 
 ; *
 ; * Define variables, buffer, and stack in ram
 ; *
 
-	org BOTSCR
-KEYWRD:	ds 1	; Was init done?
-TXTLMT:	ds 2	; ->Limit CF Text Area
-VARBGN:	ds 2*26	; TB Variables A-Z
-CURRNT:	ds 2	; Points to current line
-STKGOS:	ds 2	; Saves SP in 'GOSUB'
-VARNXT:	ds 0	; Temp storage
-STKINP:	ds 2	; Saves SP in 'INPUT'
-LOPVAR:	ds 2	; 'FOR' loop save area
-LOPINC:	ds 2	; Increment
-LOPLMT:	ds 2	; Limit
-LOPLN:	ds 2	; Line number
-LOPPT:	ds 2	; Text Pointer
-RANPNT:	ds 2	; Random number pointer
-	ds 1	; Extra byte for buffer
-BUFFER:	ds 132	; Input buffer
-BUFEND:	ds 0	; Buffer ends
-	ds 4	; Extra bytes for stack
-STKLMT:	ds 0	; Soft limit for stack
+KEYWRD:	equ BOTSCR		; Was init done?
+TXTLMT:	equ KEYWRD + 1		; ->Limit CF Text Area
+VARBGN:	equ TXTLMT + 2		; TB Variables A-Z
+CURRNT:	equ VARBGN + 2*26	; Points to current line
+STKGOS:	equ CURRNT + 2		; Saves SP in 'GOSUB'
+VARNXT:	equ STKGOS + 2		; Temp storage
+STKINP:	equ VARNXT + 1		; Saves SP in 'INPUT'
+LOPVAR:	equ STKINP + 2		; 'FOR' loop save area
+LOPINC:	equ LOPVAR + 2		; Increment
+LOPLMT:	equ LOPINC + 2		; Limit
+LOPLN:	equ LOPLMT + 2		; Line number
+LOPPT:	equ LOPLN  + 2		; Text Pointer
+RANPNT:	equ LOPPT  + 2		; Random number pointer
+CURSOR_COL:	equ	RANPNT +  2
+CURSOR_ROW:	equ	CURSOR_COL + 1
+KB_PS2_STATE:	equ	CURSOR_ROW + 1
+KB_PS2_COUNT:	equ	KB_PS2_STATE + 1
 
-	org TOPSCR
-STACK:	ds 0	; Stack starts here
+		     		; Extra byte for buffer
+BUFFER:	equ KB_PS2_COUNT + 2		; Input buffer
+BUFEND:	equ BUFFER + 132	; Buffer ends
+	    	     		; Extra bytes for stack
+STKLMT:	equ BUFEND + 4		; Soft limit for stack
 
-	org BOTRAM
-TXTUNF:	ds 2
-TEXT:	ds 2
+
+
+STACK:	equ TOPSCR		; Stack starts here
+
+TXTUNF:	equ BOTRAM
+TEXT:	equ TXTUNF + 2
+
+
+
+; Video ports
+VADDRPORT:	equ	$80
+VDATAPORT:	equ	$81
+
+; Serial ports
+SIODATAA:	equ	$f0
+SIODATAB: 	equ	$f1
+SIOCMDA:  	equ	$f2
+SIOCMDB:  	equ	$f3
+
+; General port
+OUTPORT:	equ	$00
+
+
+
+
+; *
+; *********************************************************************
+; *
+; * *** Local initialization ***
+; *
+
+	ld a, $1 : out (OUTPORT), a
+	
+	call VD_CONFIGURE
+	
+	ld a, $2 : out (OUTPORT), a
+	
+	ld a, 0
+	call KD_CONFIGURE
+	
+	ld a, $3 : out (OUTPORT), a
+
+	jr INIT
+	
+
+
 
 ; *
 ; *********************************************************************
@@ -406,7 +459,8 @@ PR9:	call EXPR	; Evaluate the EXPR
 ; * is zero, it indicates th we never had a "GOSUB" and is this an 
 ; * error.
 ; *
-
+	if 0
+	
 GOSUB:	call PUSHA	; Save the current "FOR"
 	call EXPR	; parameters
 	push de		; and text pointer
@@ -564,7 +618,7 @@ NX5:	pop hl		; overflow, purge
 NX6:	call POPA	; Purge this loop
 	jp FINISH
 	
-
+	endif
 ; *
 ; *********************************************************************
 ; *
@@ -1225,6 +1279,8 @@ MD1:	dec de		; else move a byte
 	ld (hl), a	; then do it
 	jr MVDOWN	; loop back
 
+	if 0
+
 POPA:	pop bc		; BC = Return addr.
 	pop hl		; restore LOPVAR, but
 	ld (LOPVAR), hl	; =0 means no more
@@ -1263,6 +1319,9 @@ PUSHA:	ld hl, STKLMT	; *** PUSHA ***
 PU1:	push hl
 	push bc		; BC = return addr
 	ret
+
+	endif
+
 LOCR:	ld hl, (TXTUNF)
 	dec hl
 	dec hl
@@ -1392,14 +1451,14 @@ TAB1:	db "LIST" : dwa LIST	; Direct Commands
 	db "RUN" : dwa RUN
 
 TAB2:
-	db "NEXT" : dwa NEXT	; Direct/Statement
+;	db "NEXT" : dwa NEXT	; Direct/Statement
 	db "LET" : dwa LET
 	db "IF" : dwa IFF
 	db "GOTO" : dwa GOTO
-	db "GOSUB" : dwa GOSUB
-	db "RETURN" : dwa RETURN
+;	db "GOSUB" : dwa GOSUB
+;	db "RETURN" : dwa RETURN
 	db "REM" : dwa REM
-	db "FOR" : dwa FOR
+;	db "FOR" : dwa FOR
 	db "INPUT" : dwa INPUT
 	db "PRINT" : dwa PRINT
 	db "STOP" : dwa STOP
@@ -1414,11 +1473,11 @@ TAB3:	db "RND" : dwa RND		; Functions
 MOREF:	jp NOTF			; *** JMP USER-FUNCTION ***
 
 TAB4:
-	db "TO" : dwa FR1		; "FOR" command
-	db 0 : dwa QWHAT
+;	db "TO" : dwa FR1		; "FOR" command
+;	db 0 : dwa QWHAT
 TAB5:
-	db "STEP" : dwa FR2	; "FOR" command
-	db 0 : dwa FR3
+;	db "STEP" : dwa FR2	; "FOR" command
+;	db 0 : dwa FR3
 
 TAB6:	db ">=" : dwa XPR1		; Relation operators
 	db "#" : dwa XPR2
@@ -1467,9 +1526,550 @@ RANEND:	EQU $
 ; *
 
 CRLF:	ld a, '\n'	; CR in A
-OUTCH:	ret
-CHKIO:	ret
+OUTCH:	push hl
+	push af
+	call VD_OUT
+	pop af
+	pop hl
+	ret
+	
+CHKIO:	call KD_POLL_CHAR
+	ret nc		; Return if nothing came out
+	xor a  		; No, nothing exists, set Zero flag
+	ret
+
 GETLN:	ret
 
 
-include "utils/video_driver.s"
+; ***********************************************************
+; Title:	Setup the keyboard input
+; Name: 	KD_CONFIGURE
+; Purpose:	Configure and setup all variables
+; 		used by the keyboard serial port.
+;
+; Entry:	If setting up for interrupts:
+; 		   Register A = INT vector
+;		else
+;		   Register A = 0
+; Exit:		None
+;
+; Registers used:      A
+; ***********************************************************
+
+KD_CONFIGURE:
+	; Channel reset
+	ld a, KD_WR0_REG0 | KD_WR0_CMD_CHNL_RST
+	out (SIOCMDB), a
+	; Ptr 4. Reset Ext/Status interrupts
+	ld a, KD_WR0_REG4 | KD_WR0_CMD_RST_EXT_STS_INTS
+	out (SIOCMDB), a
+	; x1 Clock mode, Async,1 stop bit, odd partity
+	ld a, KD_WR4_CLK_X1 | KD_WR4_STP_1 | KD_WR4_PRT_ODD | KD_WR4_PRT_EN
+	out (SIOCMDB), a
+	; Pointer 3
+	ld a, KD_WR0_REG3
+	out (SIOCMDB), a
+	; Rx 8 bits, no auto enable, Rx enable
+	ld a, KD_WR3_RX_8BITS | KD_WR3_RX_EN
+	out (SIOCMDB), a
+	; Pointer 5
+	ld a, KD_WR0_REG5
+	out (SIOCMDB), a
+	; 8 bits, Tx not enabled
+	ld a, KD_WR5_TX_8BITS
+	out (SIOCMDB), a
+	; Pointer 1, Reset Ext/Status ints
+	ld a, KD_WR0_REG1 | KD_WR0_CMD_RST_EXT_STS_INTS
+	out (SIOCMDB), a
+	; Receive interrupts On First Char only
+	ld a, KD_WR1_RX_INT_DIS		; Default to disabled
+	out (SIOCMDB), a
+
+	; Initialize the keyboard input buffer
+	xor a
+	ld (KB_PS2_STATE), a
+	ld (KB_PS2_COUNT), a
+	ret
+
+
+; ***********************************************************
+; Title:	Poll the keyboard ASCII char
+; Name: 	KD_POLL_CHAR
+; Purpose:	Checks if there are any thing inbound from
+; 		the keyboard, and if there is it returns it.
+; Entry:	None
+; Exit:		If there are keys available:
+; 		   Register A = value
+;		   Carry flag = 0
+;		else
+;		   Carry flag = 1
+;
+; Registers used:      A
+; ***********************************************************
+KD_POLL_CHAR:
+	in a, (SIOCMDB)
+	and KD_RD0_DATA_AV	; Check if data is available
+	ret z
+	in a, (SIODATAB)	; Read data
+	call KD_CONVERT
+	ret
+
+; ***********************************************************
+; Title:	Convert Scan Codes to ASCII
+; Name: 	KD_CONVERT
+; Purpose:	Converts PS/2 Scan Codes Set 2 to ASCII chars
+;
+; Entry:	Scan Code in Register A
+; Exit:		If the code can be converted
+; 		   Register A = ASCII
+;		   Carry flag = 0
+;		else
+;		   Carry flag = 1
+;
+; Registers used:      A
+; ***********************************************************
+KD_CONVERT:
+	push de
+	push hl
+	ld e, a			; Save A for later
+	ld a, (KB_PS2_STATE)
+	ld d, a
+	ld a, e
+	
+	ld hl, KB_PS2_COUNT	; Increase counter
+	inc (hl)
+
+	and $e0			; Test for longer sequences (two top bits)
+	cp $e0
+	jr nz, .test_value	; Jump if this may be a character
+
+	ld a, e
+	cp $F0			; Test for Break
+	jr nz, .test_extended	; Jump if this is not a Break
+
+	ld a, KD_STATE_BREAK
+	or d
+	ld d, a
+	jr .done
+
+.test_extended:
+	cp $E0			; Test for Extended
+	jr nz, .test_pause	; Jump if this is not a Extended
+
+	ld a, KD_STATE_EXTENDED
+	or d
+	ld d, a
+	jr .done
+
+.test_pause:
+	cp $E1			; Test for Extended
+	jr nz, .reset_flags	; Jump if this is not a Extended
+
+	ld a, KD_STATE_PAUSE
+	or d
+	ld d, a
+	jr .done
+
+.test_value:
+	ld a, d			; Fetch STATE
+	and KD_STATE_PAUSE	; Test Pause flag
+	jr z, .test_break_set	; Jump if we're not in a Pause seq
+
+
+	ld a, (KB_PS2_COUNT)
+	and $8			; Check if we're at the end of the pause seq
+	jr nz, .reset_flags	; Reset flags and count
+
+	jr .done		; We're not in the end, just continue
+
+.test_break_set:
+	ld a, d
+	and KD_STATE_BREAK
+	jr z, .test_ext_set
+	
+	ld a, e
+	cp $7c
+	jr nz, .reset_flags
+
+	jr .done
+
+.test_ext_set:
+	ld a, d
+	and KD_STATE_EXTENDED
+	jr z, .lookup
+
+	ld a, e
+	cp $12
+	jr nz, .reset_flags
+	
+	jr .done
+
+.lookup:
+	ld a, e
+	cp $5f
+	jp p, .reset_flags
+
+	ld d, 0
+	ld hl, KD_SCANCODES
+	add hl, de
+
+	ld a, (hl)
+	or a
+	jr z, .reset_flags
+	jr .all_done
+
+.reset_flags:
+	xor a
+	ld d, a
+	ld (KB_PS2_COUNT), a
+.done:
+	ld a, d
+	ld (KB_PS2_STATE), a
+	scf
+.all_done:
+	pop hl
+	pop de
+	ret
+
+KD_SCANCODES:	; Scan Code set 2
+
+
+	byte 0, 0, 0, 0, 0, 0, 0, 0
+	byte 0, 0, 0, 0, 0, 0, '`', 0
+	byte 0, 0, 0, 0, 0, 'Q', '1', 0
+	byte 0, 0, 'Z', 'S', 'A', 'W', '2', 0
+	byte 0, 'C', 'X', 'D', 'E', '4', '3', 0
+	byte 0, ' ', 'V', 'F', 'T', 'R', '5', 0
+	byte 0, 'N', 'B', 'H', 'G', 'Y', '6', 0
+	byte 0, 0, 'M', 'J', 'U', '7', '8', 0
+	byte 0, ',', 'K', 'I', 'O', '0', '9', 0
+	byte 0, '.', '/', 'L', ';', 'P', '-', 0
+	byte 0, 0, 0, 0, '[', '=', 0, 0
+	byte 0, 0, '\n', ']', 0, '\\', 0, 0
+
+KD_SCANCODES_LEN:    equ $ - KD_SCANCODES
+
+KD_STATE_BREAK			= %10000000
+KD_STATE_EXTENDED		= %01000000
+KD_STATE_PAUSE			= %00100000
+KD_STATE_CAPS			= %00010000
+KD_STATE_NUM			= %00001000
+KD_STATE_CTRL			= %00000100
+KD_STATE_ALT			= %00000010
+KD_STATE_SHIFT			= %00000001
+
+
+
+KD_RD0_BREAK			= %10000000
+KD_RD0_UNDERUN_EOM		= %01000000
+KD_RD0_CTS			= %00100000
+KD_RD0_SYNC_HUNT		= %00010000
+KD_RD0_DCD			= %00001000
+KD_RD0_TX_EMPTY			= %00000100
+KD_RD0_INT_PEND			= %00000010
+KD_RD0_DATA_AV			= %00000001
+
+KD_WR0_REG0			= %00000000
+KD_WR0_REG1 			= %00000001
+KD_WR0_REG2 			= %00000010
+KD_WR0_REG3 			= %00000011
+KD_WR0_REG4 			= %00000100
+KD_WR0_REG5 			= %00000101
+KD_WR0_REG6 			= %00000110
+KD_WR0_REG7 			= %00000111
+
+KD_WR0_CMD_NULL			= %00000000
+KD_WR0_CMD_ABORT 		= %00001000
+KD_WR0_CMD_RST_EXT_STS_INTS	= %00010000
+KD_WR0_CMD_CHNL_RST 		= %00011000
+KD_WR0_CMD_EN_INT_NXT_RX_CHR 	= %00100000
+KD_WR0_CMD_RST_TX_INT 		= %00101000
+KD_WR0_CMD_ERR_RST 		= %00110000
+KD_WR0_CMD_RTN_FRM_INT 		= %00111000
+
+KD_WR0_CRC_NULL			= %00000000
+
+KD_WR1_WR_EN			= %00000000
+KD_WR1_WR_FUNC			= %01000000
+KD_WR1_WR_ON_RT			= %00100000
+
+KD_WR1_RX_INT_DIS		= %00000000
+KD_WR1_RX_INT_FIRST		= %00001000
+KD_WR1_RX_INT_ALL_PRT		= %00010000
+KD_WR1_RX_INT_ALL		= %00011000
+
+KD_WR1_ST_AFF_INT_VEC		= %00000100
+KD_WR1_TX_INT			= %00000010
+KD_WR1_EXT_INT			= %00000001
+
+
+KD_WR3_RX_5BITS			= %00000000
+KD_WR3_RX_7BITS			= %01000000
+KD_WR3_RX_6BITS			= %10000000
+KD_WR3_RX_8BITS			= %11000000
+
+KD_WR3_AUTO_EN			= %00100000
+KD_WR3_HUNT			= %00010000
+KD_WR3_RX_CRC			= %00001000
+KD_WR3_ADDR_SRC_SDLC		= %00000100
+KD_WR3_SNC_CHAR_L		= %00000010
+KD_WR3_RX_EN			= %00000001
+
+KD_WR4_CLK_X1			= %00000000
+KD_WR4_CLK_X16			= %01000000
+KD_WR4_CLK_X32			= %10000000
+KD_WR4_CLK_X64			= %11000000
+
+KD_WR4_SNC_8B			= %00000000
+KD_WR4_SNC_16B			= %00010000
+KD_WR4_SNC_SDLC			= %00100000
+KD_WR4_SNC_EXT			= %00110000
+
+KD_WR4_SNC_EN			= %00000000
+KD_WR4_STP_1			= %00000100
+KD_WR4_STP_15			= %00001000
+KD_WR4_STP_2			= %00001100
+
+KD_WR4_PRT_ODD			= %00000000
+KD_WR4_PRT_EVEN			= %00000010
+
+KD_WR4_PRT_EN			= %00000001
+
+KD_WR5_DTR			= %10000000
+
+KD_WR5_TX_5BITS			= %00000000
+KD_WR5_TX_7BITS			= %00100000
+KD_WR5_TX_6BITS			= %01000000
+KD_WR5_TX_8BITS			= %01100000
+
+KD_WR5_SND_BRK			= %00010000
+KD_WR5_TX_EN			= %00001000
+KD_WR5_SDLC_CRC16		= %00000100
+KD_WR5_RTS			= %00000010
+KD_WR5_TX_CRC			= %00000001
+
+
+; ***********************************************************
+; Title:	Initialize and configure the video card
+; Name: 	VD_CONFIGURE
+; Purpose:	Configures the video card with the settings
+; 		that will be used.
+; Entry:	None
+; 		
+; Exit:		None
+; Registers used:	 A, BC, HL
+; ***********************************************************
+VD_CONFIGURE:
+	ld hl, VD_INIT_TBL
+	ld b, 16
+	ld c, 0
+
+.loop:
+	ld a, c
+	out (VADDRPORT), a
+	ld a, (hl)
+	out (VDATAPORT), a
+	inc hl
+	inc c
+	djnz .loop
+
+	; 4. Set all video variables in memory
+	xor a
+	ld (CURSOR_COL), a
+	ld (CURSOR_ROW), a
+	call VD_UPDATE_CURSOR
+.done:
+	ret
+
+; ***********************************************************
+; Title:	Outputs 1 byte to the video card
+; Name: 	VD_OUT
+; Purpose:	Prints one character to the video card
+; 		at the location of the cursor. Also
+;		changes the location of the cursor.
+; Entry:	Register A = Char to output
+; Exit:		None
+; Registers used:	 A, HL
+; ***********************************************************
+VD_OUT:
+	cp '\n'			; Check for newline
+	jr z, .eol
+	
+	push de
+	push bc
+	call VD_GET_CURSOR_ADDR	; Get the cursor address
+	ld de, VRAMBEG		; Get the base memory for vram
+	add hl, de		; Get the memory for the new char
+	ld (hl), a		; Output char
+
+	ld b, 0	 		; Move the cursor one step to the right
+	ld c, 1
+	call VD_MOVE_CURSOR_REL
+	call VD_UPDATE_CURSOR
+	pop bc
+	pop de
+	ret
+
+.eol
+	xor a
+	ld (CURSOR_COL), a
+	ld a, (CURSOR_ROW)
+	inc a
+.check_row_overflow:
+	cp VIDEO_ROWS
+	jp m, .row_done
+	sub VIDEO_ROWS
+;	jr .check_row_overflow
+.row_done:
+	ld (CURSOR_ROW), a		; Save CURSOR_ROW
+	ret
+
+; ***********************************************************
+; Title:	Move cursor relative
+; Name: 	MOVE_CURSOR_REL
+; Purpose:	Move the cursor relative to the
+; 		current position.
+;
+;		!! Doesn't update the cursor in the video chip !!
+;
+; Entry:	Register b = row delta
+; 		Register c = columns delta
+; Exit:		Cursor has been moved, and variables updated.
+; Registers used:      A, BC
+; ***********************************************************
+VD_MOVE_CURSOR_REL:
+; Update and adjust the rows and columns
+  	; Columns
+	ld a, (CURSOR_COL)
+	add c
+	jp p, .check_col_overflow
+				; We had a column move
+	       			; ending in the previous line
+	dec b
+	add VIDEO_COLUMNS	; Adjust column
+
+.check_col_overflow:
+	cp VIDEO_COLUMNS
+	jp m, .col_done
+	inc b
+	sub VIDEO_COLUMNS
+	jr .check_col_overflow
+.col_done:
+	ld (CURSOR_COL), a		; Save CURSOR_COL
+
+	; Rows
+	ld a, (CURSOR_ROW)
+	add b
+	jp p, .check_row_overflow
+
+	add VIDEO_ROWS
+
+.check_row_overflow:
+	cp VIDEO_ROWS
+	jp m, .row_done
+	sub VIDEO_ROWS
+	jr .check_row_overflow
+.row_done:
+	ld (CURSOR_ROW), a		; Save CURSOR_ROW
+	ret
+
+; ***********************************************************
+; Title:	Update cursor position on screen
+; Name: 	UPDATE_CURSOR
+; Purpose:	Update the cursor from the two memory position
+; 		describing it's position, CURSOR_COL, CURSOR_ROW.
+; Entry:	None
+; Exit:		None
+; Registers used:      None
+; ***********************************************************
+VD_UPDATE_CURSOR:
+	push hl
+	push de
+	push bc
+	push af
+; Set the actual cursor to the correct location
+
+	ld hl, CURSOR_ROW
+	ld b, (hl)
+	ld hl, CURSOR_COL
+	ld c, (hl)
+
+      	ld hl, 0
+	ld de, VIDEO_COLUMNS
+	
+	ld a, 0
+	or b
+	jr z, .loop_done
+.loop:
+	add hl, de
+	djnz .loop
+.loop_done:
+	add hl, bc
+
+; Output the cursor location to the video chip
+  	ld a, 14   ; Register 14
+	out (VADDRPORT), a
+	ld a, h
+	out (VDATAPORT), a
+
+	ld a, 15   ; Register 15
+	out (VADDRPORT), a
+	ld a, l
+	out (VDATAPORT), a
+	 
+	pop af
+	pop bc
+	pop de
+	pop hl
+	ret
+
+; ***********************************************************
+; Title:	Get Cursor Memory Address
+; Name:		GET_CURSOR_ADDR
+; Purpose:	Calculate the base address for the cursor
+; 		given it's current row and column.
+; Entry:	Nothing
+; Exit:		Register HL = Base address for cursor
+; Registers used:	 HL
+; ***********************************************************
+
+VD_GET_CURSOR_ADDR:
+	push bc
+	push de
+	ld hl, CURSOR_ROW
+	ld b, (hl)
+	ld hl, CURSOR_COL
+	ld c, (hl)
+				; Calculate memory location of cursor
+	ld hl, 0
+
+	ld e, a			; Store a
+	xor a
+	or b
+	ld a, e
+	ld de, 80
+	jr z, .loop_done
+
+.loop:
+	add hl, de
+	djnz .loop
+.loop_done:
+	add hl, bc
+	pop de
+	pop bc
+	ret
+
+
+VD_INIT_TBL:
+	db $64, $50 ; Horizontal Total, Horizontal Displayed
+	db $52, $0c ; Horizontal Sync Pos, Sync Width
+	db $1f, $0c ; Vertical Total, Vertical Total Adjust
+	db $1e, $1f ; Vertical Displayed, Vertical Sync Position
+	db $00, $0f ; Interlace Mode, Maximum Scan Line Address
+	db $47, $0f ; Cursor start + mode, Cursor end
+	db $00, $00 ; Memory Start offset high, low
+	db $00, $00 ; Cursor address high, low
+
+	org $07fe
+	word $0000
+	end
