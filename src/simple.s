@@ -61,6 +61,10 @@ IGNBLK:	; Ignore blanks
 ; Entry:	Register DE - Base address of string containing number
 ; Exit:		Register HL - Containing the number
 ; 		Register DE - Pointing to next char
+;		If successful
+;		   Carry = Reset
+;		else
+;		   Carry = Set
 ;
 ; Registers used:      DE, HL
 ; ***********************************************************
@@ -68,7 +72,7 @@ READNUM:
 	call IGNBLK
 	ld hl, 0
 .loop:	cp '0'		; Check if number (i.e. 0-9)
-	ret c
+	jr c, .done
 	cp $3a		; Test if > 9
 	jr nc, .check_alpha	; Yes, check for alpha (i.e. a-f)
 	and $0f		; Convert from ASCII
@@ -76,16 +80,16 @@ READNUM:
 .check_alpha:
 	and $df		; Make upper case
 	cp 'A'
-	ret c
+	jr c, .done
 	cp 'G'
-	ret nc
+	jr nc, .done
 	sub 'A'-10
 .add_to_hl:		; Store A in HL
 	push bc
 	ld b, a		; Store A
 	ld a, $f0
 	and h		; Check if enough room in HL
-	jp nz, QHOW	; No, quit
+	jr nz, .error	; No, quit with error
 
 	sla l  		; Rotate hl to fit
 	rl h
@@ -103,7 +107,14 @@ READNUM:
 	inc de		; Increase pointer
 	ld a, (de)
 	jr .loop	; Next char
-	
+
+.error:
+	pop bc
+	scf
+	ret
+.done:
+	xor a
+	ret
 
 
 ; ***********************************************************
@@ -119,7 +130,9 @@ READNUM:
 PRINTMEM_ARG:
 	call READNUM
 	push hl
+	jr c, .error
 	call READNUM
+	jr c, .error
 	ld c, l
 	pop hl
 	ld a, h
@@ -132,6 +145,10 @@ PRINTMEM_ARG:
 	call PRINTNUM
 	call CRLF
 	jr PRINTMEM
+.error:
+	pop hl
+	call QHOW
+	ret
 
 ; ***********************************************************
 ; Title:	Print memory content
