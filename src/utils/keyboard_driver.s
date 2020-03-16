@@ -20,42 +20,42 @@ KD_CONFIGURE:
 	push de
 	ld e, a		; Save for later
 	; Channel reset
-	ld a, KD_WR0_REG0 | KD_WR0_CMD_CHNL_RST
+	ld a, SIO_WR0_REG0 | SIO_WR0_CMD_CHNL_RST
 	out (SIOCMDB), a
 	; Pointer 2 
-	ld a, KD_WR0_REG2
+	ld a, SIO_WR0_REG2
 	out (SIOCMDB), a
 	; Interrupt vector
 	ld a, e
 	out (SIOCMDB), a
 	; Ptr 4. Reset Ext/Status interrupts
-	ld a, KD_WR0_REG4 | KD_WR0_CMD_RST_EXT_STS_INTS
+	ld a, SIO_WR0_REG4 | SIO_WR0_CMD_RST_EXT_STS_INTS
 	out (SIOCMDB), a
 	; x1 Clock mode, Async,1 stop bit, odd partity
-	ld a, KD_WR4_CLK_X1 | KD_WR4_STP_1 | KD_WR4_PRT_ODD | KD_WR4_PRT_EN
+	ld a, SIO_WR4_CLK_X1 | SIO_WR4_STP_1 | SIO_WR4_PRT_ODD | SIO_WR4_PRT_EN
 	out (SIOCMDB), a
 	; Pointer 3
-	ld a, KD_WR0_REG3
+	ld a, SIO_WR0_REG3
 	out (SIOCMDB), a
 	; Rx 8 bits, no auto enable, Rx enable
-	ld a, KD_WR3_RX_8BITS | KD_WR3_RX_EN
+	ld a, SIO_WR3_RX_8BITS | SIO_WR3_RX_EN
 	out (SIOCMDB), a
 	; Pointer 5
-	ld a, KD_WR0_REG5
+	ld a, SIO_WR0_REG5
 	out (SIOCMDB), a
 	; 8 bits, Tx not enabled
-	ld a, KD_WR5_TX_8BITS
+	ld a, SIO_WR5_TX_8BITS
 	out (SIOCMDB), a
 	; Pointer 1, Reset Ext/Status ints
-	ld a, KD_WR0_REG1 | KD_WR0_CMD_RST_EXT_STS_INTS
+	ld a, SIO_WR0_REG1 | SIO_WR0_CMD_RST_EXT_STS_INTS
 	out (SIOCMDB), a
 	; Receive interrupts On First Char only
 	ld a, e
 	or a	; Check if interrupt vector has been given
 	
-	ld a, KD_WR1_RX_INT_DIS		; Default to disabled
+	ld a, SIO_WR1_RX_INT_DIS	; Default to disabled
 	jr z, .no_ints ; Jump if no vector is specified
-	ld a, KD_WR1_RX_INT_FIRST	; Turn on ints
+	ld a, SIO_WR1_RX_INT_FIRST	; Turn on ints
 .no_ints
 	out (SIOCMDB), a
 
@@ -189,10 +189,10 @@ KD_NEXT_KVAL:
 ; Registers used:      A
 ; ***********************************************************
 KD_POLL:
-	ld a, KD_WR0_REG0	; Load status of keyboard
+	ld a, SIO_WR0_REG0	; Load status of keyboard
 	out (SIOCMDB), a
 	in a, (SIOCMDB)
-	and KD_RD0_DATA_AV	; Check if data is available
+	and SIO_RD0_DATA_AV	; Check if data is available
 	jr z, .done		; Jump if there is no data
 	in a, (SIODATAB)	; Read data
 	call KD_CONVERT		; Convert to ASCII
@@ -216,10 +216,10 @@ KD_POLL:
 ; Registers used:      A
 ; ***********************************************************
 KD_POLL_CHAR:
-	ld a, KD_WR0_REG0	; Load status of keyboard
+	ld a, SIO_WR0_REG0	; Load status of keyboard
 	out (SIOCMDB), a
 	in a, (SIOCMDB)
-	and KD_RD0_DATA_AV	; Check if data is available
+	and SIO_RD0_DATA_AV	; Check if data is available
 	ret z
 	in a, (SIODATAB)	; Read data
 	call KD_CONVERT
@@ -241,10 +241,10 @@ KD_POLL_CHAR:
 ; Registers used:      A
 ; ***********************************************************
 KD_POLL_CODE:
-	ld a, KD_WR0_REG0	; Load status of keyboard
+	ld a, SIO_WR0_REG0	; Load status of keyboard
 	out (SIOCMDB), a
 	in a, (SIOCMDB)
-	and KD_RD0_DATA_AV	; Check if data is available
+	and SIO_RD0_DATA_AV	; Check if data is available
 	jr z, .done		; Jump if there is no data
 	and a
 	in a, (SIODATAB)	; Read data
@@ -392,95 +392,4 @@ KD_STATE_NUM			= %00001000
 KD_STATE_CTRL			= %00000100
 KD_STATE_ALT			= %00000010
 KD_STATE_SHIFT			= %00000001
-
-
-
-KD_RD0_BREAK			= %10000000
-KD_RD0_UNDERUN_EOM		= %01000000
-KD_RD0_CTS			= %00100000
-KD_RD0_SYNC_HUNT		= %00010000
-KD_RD0_DCD			= %00001000
-KD_RD0_TX_EMPTY			= %00000100
-KD_RD0_INT_PEND			= %00000010
-KD_RD0_DATA_AV			= %00000001
-
-KD_WR0_REG0			= %00000000
-KD_WR0_REG1 			= %00000001
-KD_WR0_REG2 			= %00000010
-KD_WR0_REG3 			= %00000011
-KD_WR0_REG4 			= %00000100
-KD_WR0_REG5 			= %00000101
-KD_WR0_REG6 			= %00000110
-KD_WR0_REG7 			= %00000111
-
-KD_WR0_CMD_NULL			= %00000000
-KD_WR0_CMD_ABORT 		= %00001000
-KD_WR0_CMD_RST_EXT_STS_INTS	= %00010000
-KD_WR0_CMD_CHNL_RST 		= %00011000
-KD_WR0_CMD_EN_INT_NXT_RX_CHR 	= %00100000
-KD_WR0_CMD_RST_TX_INT 		= %00101000
-KD_WR0_CMD_ERR_RST 		= %00110000
-KD_WR0_CMD_RTN_FRM_INT 		= %00111000
-
-KD_WR0_CRC_NULL			= %00000000
-
-KD_WR1_WR_EN			= %00000000
-KD_WR1_WR_FUNC			= %01000000
-KD_WR1_WR_ON_RT			= %00100000
-
-KD_WR1_RX_INT_DIS		= %00000000
-KD_WR1_RX_INT_FIRST		= %00001000
-KD_WR1_RX_INT_ALL_PRT		= %00010000
-KD_WR1_RX_INT_ALL		= %00011000
-
-KD_WR1_ST_AFF_INT_VEC		= %00000100
-KD_WR1_TX_INT			= %00000010
-KD_WR1_EXT_INT			= %00000001
-
-
-KD_WR3_RX_5BITS			= %00000000
-KD_WR3_RX_7BITS			= %01000000
-KD_WR3_RX_6BITS			= %10000000
-KD_WR3_RX_8BITS			= %11000000
-
-KD_WR3_AUTO_EN			= %00100000
-KD_WR3_HUNT			= %00010000
-KD_WR3_RX_CRC			= %00001000
-KD_WR3_ADDR_SRC_SDLC		= %00000100
-KD_WR3_SNC_CHAR_L		= %00000010
-KD_WR3_RX_EN			= %00000001
-
-KD_WR4_CLK_X1			= %00000000
-KD_WR4_CLK_X16			= %01000000
-KD_WR4_CLK_X32			= %10000000
-KD_WR4_CLK_X64			= %11000000
-
-KD_WR4_SNC_8B			= %00000000
-KD_WR4_SNC_16B			= %00010000
-KD_WR4_SNC_SDLC			= %00100000
-KD_WR4_SNC_EXT			= %00110000
-
-KD_WR4_SNC_EN			= %00000000
-KD_WR4_STP_1			= %00000100
-KD_WR4_STP_15			= %00001000
-KD_WR4_STP_2			= %00001100
-
-KD_WR4_PRT_ODD			= %00000000
-KD_WR4_PRT_EVEN			= %00000010
-
-KD_WR4_PRT_EN			= %00000001
-
-KD_WR5_DTR			= %10000000
-
-KD_WR5_TX_5BITS			= %00000000
-KD_WR5_TX_7BITS			= %00100000
-KD_WR5_TX_6BITS			= %01000000
-KD_WR5_TX_8BITS			= %01100000
-
-KD_WR5_SND_BRK			= %00010000
-KD_WR5_TX_EN			= %00001000
-KD_WR5_SDLC_CRC16		= %00000100
-KD_WR5_RTS			= %00000010
-KD_WR5_TX_CRC			= %00000001
-
 

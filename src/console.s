@@ -133,7 +133,7 @@ MAIN:
 	include "utils/ramtest.s"
 	include "utils/timing.s"
 	include "utils/video_driver.s"
-	include "utils/keyboard_device.s"
+	include "utils/keyboard_driver.s"
 	include "utils/strings.s"
 
 MESSAGES:
