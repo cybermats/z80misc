@@ -61,14 +61,17 @@ VD_CONFIGURE:
 ;		changes the location of the cursor.
 ; Entry:	Register A = Char to output
 ; Exit:		None
-; Registers used:	 A, HL
+; Registers used:	 A
 ; ***********************************************************
 VD_OUT:
 	cp '\n'			; Check for newline
 	jr z, .eol
+	cp $08			; Check backspace
+	jr z, .bspc
 	
 	push de
 	push bc
+	push hl
 	call VD_GET_CURSOR_ADDR	; Get the cursor address
 	ld de, VRAMBEG		; Get the base memory for vram
 	add hl, de		; Get the memory for the new char
@@ -78,12 +81,33 @@ VD_OUT:
 	ld c, 1
 	call VD_MOVE_CURSOR_REL
 	call VD_UPDATE_CURSOR
+	pop hl
 	pop bc
 	pop de
 	ret
 
-.eol
+.eol:
 	call VD_NEW_LINE
+	ret
+
+.bspc:
+	push de
+	push bc
+	push hl
+	ld b, 0
+	ld c, -1
+	call VD_MOVE_CURSOR_REL
+	call VD_UPDATE_CURSOR
+	
+	call VD_GET_CURSOR_ADDR	; Get the cursor address
+	ld de, VRAMBEG		; Get the base memory for vram
+	add hl, de		; Get the memory for the new char
+	ld a, ' '		; Load a space to remove the current char
+	ld (hl), a		; Output char
+
+	pop hl
+	pop bc
+	pop de
 	ret
 
 
@@ -149,6 +173,7 @@ VD_OUTN:
 
 	
 VD_NEW_LINE:
+	push af
 	xor a
 	ld (CURSOR_COL), a
 	ld a, (CURSOR_ROW)
@@ -160,6 +185,7 @@ VD_NEW_LINE:
 	jr .check_row_overflow
 .row_done:
 	ld (CURSOR_ROW), a		; Save CURSOR_ROW
+	pop af
 	ret
 	
 	
