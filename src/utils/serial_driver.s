@@ -17,6 +17,11 @@
 
 SER_CONFIGURE:
 	push de
+
+	ld de, 0
+	ld (SR_START_PTR), de	; Nil out the ptrs
+
+
 	ld e, a		; Save for later
 	; Channel reset
 	ld a, SIO_WR0_REG0 | SIO_WR0_CMD_CHNL_RST
@@ -31,7 +36,7 @@ SER_CONFIGURE:
 	ld a, SIO_WR0_REG4 | SIO_WR0_CMD_RST_EXT_STS_INTS
 	out (SIOCMDB), a
 	; x1 Clock mode, Async,1 stop bit, no parity
-	ld a, SIO_WR4_CLK_X1 | SIO_WR4_STP_1
+	ld a, SIO_WR4_CLK_X64 | SIO_WR4_STP_1
 	out (SIOCMDB), a
 	; Pointer 3
 	ld a, SIO_WR0_REG3
@@ -77,15 +82,83 @@ SER_CONFIGURE:
 ; Registers used:      A
 ; ***********************************************************
 SER_POLL:
-	ld a, SIO_WR0_REG0	; Load status of keyboard
-	out (SIOCMDB), a
-	in a, (SIOCMDB)
-	and SIO_RD0_DATA_AV	; Check if data is available
-	scf
-	ret z
-	in a, (SIODATAB)	; Read data
-	ccf
+	ld a, SIO_WR0_REG0	; Load status of keyboard	; 7
+	out (SIOCMDB), a	       	      	 		; 11
+	in a, (SIOCMDB)						; 11
+	and SIO_RD0_DATA_AV	; Check if data is available	; 7
+	scf 			  	   	   		; 4
+	ret z							; 11/5
+	in a, (SIODATAB)	; Read data			; 11
+	ccf   			       				; 4
+	ret							; 10
+								; ---
+								; 51/70
+
+
+; ***********************************************************
+; Title:	Read the serial buffer
+; Name: 	SER_GET
+; Purpose:	Checks if there is anythign in the serial
+; 		buffer. Blocks if nothing is available.
+; Entry:	None
+; Exit:		Register A = value
+;
+; Registers used:      A
+; ***********************************************************
+SER_GET:
+	push de
+	push hl
+SG_LOOP:
+	ld de, (SR_START_PTR)	; Fetches START -> E, END -> D
+	ld a, d
+	cp e
+	jr nz, SG_FOUND
+	halt			; Nothing in buffer, halt
+	jr SG_LOOP		; Check if stuff is available
+SG_FOUND:  			; Stuff is available
+	ld d, 0
+	ld hl, SR_BUFFER_BEG
+	add hl, de
+	ld a, (hl)
+	ld d, a			; Store result temp
+	inc e
+	ld a, $0f
+	and e
+	ld (SR_START_PTR), a
+	ld a, d
+	pop hl
+	pop de
 	ret
+	
+	
+
+; ***********************************************************
+; Title:	Serial Callback
+; Name: 	SER_CALLBACK
+; Purpose:	Loads the data stored in the serial port
+; 		and put's it into the buffer.
+; Entry:	None
+; Exit:		None, buffer is updated through SR_END_PTR
+;
+; Registers used:      A, DE, HL
+; ***********************************************************
+SER_CALLBACK:
+	ld d, 0
+	ld a, (SR_END_PTR)
+	ld e, a
+	ld hl, SR_BUFFER_BEG
+	add hl, de
+	in a, (SIODATAB)	; Read data
+	ld (hl), a
+	inc e
+	ld a, $0f
+	and e
+	ld (SR_END_PTR), a
+	
+	ld a, SIO_WR0_REG0 | SIO_WR0_CMD_RST_EXT_STS_INTS
+	out (SIOCMDB), a
+	ret
+	
 
 ; ***********************************************************
 ; Title:	Send data to the serial port
