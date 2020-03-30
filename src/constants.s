@@ -27,7 +27,7 @@ SIOCMDB:  	equ	$f3
 
 ; Memory Locations
 VARBEG:		equ	$fd00
-STACK_START:	equ	$fdff	; This gives $100 bytes for variables
+STACK_START:	equ	$fe00	; This gives $100 bytes for variables
 
 ;DVLST:		equ	$fe00	; Device list has $100 bytes,
 				; each taking 17 bytes, i.e. 10 devices
@@ -41,11 +41,18 @@ CURSOR_ROW:	equ	$ff01
 VIDEO_STATUS:	equ	$ff02
 
 KB_START_PTR:	equ	$ff04
-KB_END_PTR:	equ	$ff06
+KB_END_PTR:	equ	$ff05
+KB_PS2_STATE:	equ	$ff06
+KB_PS2_COUNT:	equ	$ff07
 KB_BUFFER_BEG:	equ	$ff08
 KB_BUFFER_END:	equ	$ff10	; End of buffer, exclusive
-KB_PS2_STATE:	equ	$ff10
-KB_PS2_COUNT:	equ	$ff11
+
+SR_BUFFER_BEG:	equ	$ff10
+SR_BUFFER_END:	equ	$ff20	; End of buffer, exclusive
+SR_START_PTR:	equ	$ff20
+SR_END_PTR:	equ	$ff21
+
+
 
 
 ; Devices
