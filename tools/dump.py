@@ -1,5 +1,5 @@
 
-content = [ i for x in range(128) for i in ([x] + ([0]*15))]
+content = [ i for x in range(128) for i in ([x])]
 data = bytearray(content)
 print(data)
 newFile = open("check.bin", "wb")
