@@ -2,7 +2,23 @@ RESET:
 	ld a, $1
 	out (OUTPORT), a
 	ld sp, STACK_START
+;	im 2
+;	ei
 	jp INIT
+
+
+
+	org $0038
+SERIAL_INT:
+	ex af, af'
+	exx
+	call SER_CALLBACK
+	exx
+	ex af, af'
+	ei
+	reti
+	
+
 
 	org $0100
 INIT:
@@ -12,28 +28,45 @@ INIT:
 	ld hl, VRAMBEG
 	ld de, VRAMEND - VRAMBEG
 	call RAMTST
-	jr nc, .ramtest_succ
+	jr nc, .vramtest_succ
+
+.vramtest_err:
+	ld a, $aa
+	out (OUTPORT), a
+	halt
+	jr .vramtest_err
+	
+.vramtest_succ:
+	ld a, $3
+	out (OUTPORT), a
+	; Do ram test
+;	ld hl, RAMBEG
+;	ld de, RAMEND - RAMBEG - $1000
+;	call RAMTST
+;	jr nc, .ramtest_succ
+	jr .ramtest_succ
 
 .ramtest_err:
-	ld a, $aa
+	ld a, $55
 	out (OUTPORT), a
 	halt
 	jr .ramtest_err
 
 .ramtest_succ:
 .configure:
-	ld a, $3
+	ld a, $4
 	out (OUTPORT), a
 
 	ld a, 0 ; Set no int vector and disable ints
+;	ld a, $ff & SERIAL_INT	    ; Set int vector
 	call SER_CONFIGURE
 
-	ld a, $4
+	ld a, $5
 	out (OUTPORT), a
 
 	call VD_CONFIGURE
 	
-	ld a, $5		; Indicate that the video has been configured
+	ld a, $6		; Indicate that the video has been configured
 	out (OUTPORT), a
 
 	ld de, RDY
@@ -117,6 +150,15 @@ READNUM:
 	ret
 
 
+RUN_ARG:
+	call READNUM
+	jr c, .error
+	jp (hl)
+.error:
+	call QHOW
+	ret
+
+
 ; ***********************************************************
 ; Title:	Print memory content
 ; Name: 	PRINTMEM_ARG
@@ -135,15 +177,6 @@ PRINTMEM_ARG:
 	jr c, .error
 	ld c, l
 	pop hl
-	ld a, h
-	call PRINTNUM
-	ld a, l
-	call PRINTNUM
-	ld a, ' '
-	call OUTCH
-	ld a, c
-	call PRINTNUM
-	call CRLF
 	jr PRINTMEM
 .error:
 	pop hl
@@ -205,14 +238,15 @@ PRINTMEM:
 ; ***********************************************************
 ; Title:	Print a hex number
 ; Name: 	PRINTNUM
-; Purpose:	Prints the value in HL using OUTCH.
+; Purpose:	Prints the value in A using OUTCH.
 ; Entry:	Register A - Value to be printed
 ; Exit:		None
 ;
-; Registers used:      A
+; Registers used:
 ; ***********************************************************
 PRINTNUM:
 	push de
+	push af
 	ld e, a
 	
 	srl a		; Get the first hex character by
@@ -238,6 +272,7 @@ PRINTNUM:
 	    		; Add the difference between '0' and 'A'
 .pn2:	add '0'		; Convert into ASCII
 	call OUTCH	; Print second part
+	pop af
 	pop de
 	ret
 
@@ -312,13 +347,13 @@ OUTCH:	cp '\n'
 	ld a, '\r'
 	call SER_SEND
 	ld a, '\n'
-	jp VD_OUT
 .done:
 	call SER_SEND
 	jp VD_OUT
 GETLN:
 	ld de, IBUFFER
 .gl1:	call OUTCH
+;.gl2:	call SER_GET	; Get a character
 .gl2:	call SER_POLL	; Get a character
 	jr c, .gl2	; Wait for input
 	cp $03		; Is it Ctrl-C?
@@ -353,22 +388,215 @@ GETLN:
 	
 
 
-
+QERR:	ld de, ERR
+	jr ERROR
 QWHAT:	ld de, WHAT
 	jr ERROR
 QHOW:	ld de, HOW
 	jr ERROR
-ERROR:	call CRLF
-	call PRTSTG
+ERROR:	call PRTSTG
 	ret
 	
 	
+; ***********************************************************
+; Title:	Receive XMODEM
+; Name: 	RXMODEM
+; Purpose:	Listens and decodes XMODEM from the serial.
+; Entry:	Register DE - Point to String with arguments.
+; 		First argument is memory location where
+;		the data will be located.
+; Exit:		None
+;
+; Registers used:      Not sure
+; ***********************************************************
+XMODEM:
+XM_SOH_C:	equ $01	; Start of heading
+XM_EOT_C:	equ $04 ; End of Transmission
+XM_ACK_C:	equ $06	; Acknowledge
+XM_NAK_C:	equ $15	; Not Acknowledge
+XM_ETB_C:	equ $17	; End of Transmission Block
+XM_CAN_C:	equ $18	; Cancel
+XM_INIT_C:	equ $43	; ASCII 'C' to start transmission
+
+	call READNUM	; Read Address
+	push hl		; Store Address
+	jp c, XM_err	; Is address valid?
+	
+	ld d, 1		; Packet counter
+	ld b, XM_INIT_C	; Send initial ACK
+XM_beg:	push bc		; Store so we can use bc for loop variables.
+	ld a, b		; Fetch the send char.
+	call SER_SEND
+	ld bc, 0	; Set up loop variables
+	ld e, 0
+XM_init:call SER_POLL	; Try a few times
+	jr nz, XM_exec	; Check if we got anything
+	djnz XM_init	; No, we didn't. Try again.
+	dec c
+	jr nz, XM_init
+	dec e
+	pop bc
+	jr nz, XM_beg
+	ld a, 1
+	jp XM_err	; Nothing has happened, give up
+
+XM_exec:pop bc		; Clear stack
+	   		; Received char. Investigate.
+			; A->Char
+			; HL->Store memory addr
+			; BC->Free
+			; DE->(Packet counter)/(Char counter)
+	ld e, 128	; Byte counter
+	cp XM_SOH_C
+	jr z, XM_hdr
+	cp XM_EOT_C
+	jr z, XM_end
+	cp XM_CAN_C
+	jp z, XM_can
+	
+	ld a, 2
+	jp XM_err	; No known code, give up
+	
+XM_hdr:
+;	call SER_GET
+	call SER_POLL
+	jr z, XM_hdr
+	cp d		; Compare to packet counter
+	jr z, XM_hdr2	; Is this the next package?
+	dec d 		; No, check if prev
+	cp d
+	jr nz, XM_can	; Is this a retxn of old package?
+	pop hl		; Yes, restore old HL
+	push hl		; Save HL
+XM_hdr2:
+;	call SER_GET
+	call SER_POLL
+	jr z, XM_hdr2
+	cpl		; Invert second header
+	cp d
+	jr nz, XM_can	; Is this the expected package?
+	
+XM_body:
+;	call SER_GET	; Yes, start receiving data
+	call SER_POLL	; Yes, start receiving data
+	jr z, XM_body
+	ld (hl), a
+	inc hl		; Bump counters and check if at end
+	dec e
+	jr z, XM_tl
+	jr XM_body
+
+XM_tl:
+;	call SER_GET	; Save sender CRC to BC
+	call SER_POLL	; Save sender CRC to BC
+	jr z, XM_tl
+	ld b, a
+XM_tl2:
+;	call SER_GET
+	call SER_POLL
+	jr z, XM_tl2
+	ld c, a
+	ex (sp), hl	; Fetch old buffer
+	push de	 	; Save old package counter
+	push hl		; Save old buffer
+	push bc		; Save sent CRC
+	ld de, 128
+	call CRC16
+	pop hl		; Fetch sent CRC
+	    		; HL -> Sent CRC
+			; BC -> Calc CRC
+
+	or a		; Reset Carry
+	sbc hl, bc	; Check for difference
+	pop hl		; Fetch old buffer
+	pop de		; Fetch old package counter
+	ex (sp), hl	; Restore new buffer
+	jr z, XM_ack
+XM_nak:	ld b, XM_NAK_C
+	pop hl
+	push hl
+	jp XM_beg
+XM_ack:	ld b, XM_ACK_C
+	pop af
+	push hl
+	inc d
+	jp XM_beg
+
+XM_end:	ld a, XM_ACK_C
+	call SER_SEND
+
+	ex de, hl	; Final package received.
+	ld l, 0
+	srl h		; Each package is 128 bytes
+	rr l   		; so divide package nums by 2.
+			
+	pop af		; Empty stack from HL
+	jp PRINTNUM	; Print size and return.
+	
+XM_can:
+	ld a, XM_CAN_C
+	call SER_SEND
+	ld a, 3
+	jr XM_err	; Cancel everything
+	
+	
+XM_err:
+	call PRINTNUM
+	call CRLF
+	pop af
+	jp QERR
+
+
+
+
+
+
+
+; ***********************************************************
+; Title:	Calculate CRC16 on data block
+; Name: 	CRC16
+; Purpose:	Calculates the CRC16 used in XMODEM.
+; Entry:	Register HL - Start pointer for Data
+; 		Register DE - Length of Data block
+; Exit:		Register BC - CRC16 of that data block
+;
+; Registers used:      HL, BC, DE, AF
+; ***********************************************************
+CRC16:
+	ld bc, 0
+CRC_ol:	push de
+	ld a, (hl)
+	xor b
+	ld b, a
+	ld e, 8
+CRC_il:
+	sla c		; Shift BC one left
+	rl b
+	jr nc, CRC_ld	; Check if CRC & $8000 was True
+	ld a, $21	; Yes, xor in $1021
+	xor c
+	ld c, a
+	ld a, $10
+	xor b
+	ld b, a
+CRC_ld:	dec e
+	jr nz, CRC_il
+	pop de
+	inc hl		; Bump counters and check if at end
+	dec de
+	ld a, d
+	or e
+	jr nz, CRC_ol
+	ret
+
+
 
 
 
 
 WHAT:	string "What?\n"
 HOW:	string "How?\n"
+ERR:	string "Error\n"
 RDY:	string "Ready!\n"
 	
 
@@ -377,6 +605,11 @@ CMD_TABLE:
 	dw PRINTMEM_ARG
 	string "ECHO"
 	dw ECHO
+	string "RUN"
+	dw RUN_ARG
+	string "RX"
+	dw XMODEM
+
 	db 0
 	dw QWHAT
 CMD_TABLE_END:
