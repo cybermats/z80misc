@@ -3,7 +3,7 @@
 ; 
 ; Purpose: Delay from 1 to 256 milliseconds
 ; 
-; Entry: Register A = Nuimber of ms to delay
+; Entry: Register A = Number of ms to delay
 ;        A 0 equals 256 milliseconds
 ; 
 ; Registers used: AF
