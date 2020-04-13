@@ -39,7 +39,7 @@ DELAY:
 	      push  bc		    ; 11 Cycles
 	      call  DLY		    ; 32 cycles to return from DLY
 				    ; Do 2 less than 1 millisecond for overhead
-	      ld    B, +(CPMS/50)-2 ; 7 Cycles
+	      ld    B, 0+(CPMS/50)-2 ; 7 Cycles
 				    ; -------
 				    ; 67 Cycles
 
@@ -69,7 +69,7 @@ LDLY3:	      add   a, 0	    ; 7 Cycles
 DLY:
 	      dec   a		    ; 4 Cycles
 	      ret   z		    ; 5 Cycles (return when done 11 cycles)
-	      ld    B, +(CPMS/50)-1 ; 7 Cycles
+	      ld    B, 0+(CPMS/50)-1 ; 7 Cycles
 				    ; ---
 				    ; 16 Cycles
 	      

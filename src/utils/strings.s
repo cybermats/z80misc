@@ -91,14 +91,14 @@ ITOA:
 	srl a
 	srl a
 
-	cp $a		; Check if the value is greater than or equal
+	cp 0ah		; Check if the value is greater than or equal
 	   		; to $a
 	jp m, .below_a_first
-	add 'A'-'0'-10	; Add the difference between '0' and 'A'
+	add a, 'A'-'0'-10	; Add the difference between '0' and 'A'
 
 .below_a_first
 
-	add '0'
+	add a, '0'
 	ld (hl), a
 	inc hl
 	dec bc
@@ -108,17 +108,17 @@ ITOA:
 	jr z, .add_null
 
 	ld a, e		; Restore the original a
-	and $0f		; and mask it to the lower four bits
+	and 0fh		; and mask it to the lower four bits
 
 
-	cp $a		; Check if the value is greater than or equal
+	cp 0ah		; Check if the value is greater than or equal
 	   		; to $a
 	jp m, .below_a_second
-	add 'A'-'0'-10	; Add the difference between '0' and 'A'
+	add a, 'A'-'0'-10	; Add the difference between '0' and 'A'
 
 .below_a_second
 
-	add '0'
+	add a, '0'
 	ld (hl), a
 	inc hl
 

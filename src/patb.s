@@ -12,16 +12,16 @@
 ; https://www.autometer.de/unix4fun/z80pack/ftp/altair/Palo%20Alto%20Tiny%20BASIC%20Version%203.pdf
 
 
-	macro TSTC
-	db \1
-	db \2-$-1
+TSTC:	macro a, b
+	db a
+	db b-$-1
 	CALL TSTCH
-	endmacro
+	endm
 
-dwa:	macro 
-	db (\1 >> 8) ; TODO + 128
-	db \1 & $ff
-	endmacro
+dwa:	macro prm
+	db (prm >> 8) ; TODO + 128
+	db prm & 00ffh
+	endm
 
 
 ; *********************************************************************
@@ -33,13 +33,13 @@ dwa:	macro
 ; * F000-F7FF are for TBI code
 ; *
 
-BOTSCR:	equ	$8000
-TOPSCR: equ	$9fff
-BOTRAM:	equ	$a000
-DFTLMT:	equ	$f000
-BOTROM:	equ	$0016
-VRAMBEG:	equ	$7000
-VRAMEND:  	equ	$7fff
+BOTSCR:	equ	8000h
+TOPSCR: equ	9fffh
+BOTRAM:	equ	0a000h
+DFTLMT:	equ	0f000h
+BOTROM:	equ	0016h
+VRAMBEG:	equ	7000h
+VRAMEND:  	equ	7fffh
 
 
 ; Misc constants
@@ -86,17 +86,17 @@ TEXT:	equ TXTUNF + 2
 
 
 ; Video ports
-VADDRPORT:	equ	$80
-VDATAPORT:	equ	$81
+VADDRPORT:	equ	80h
+VDATAPORT:	equ	81h
 
 ; Serial ports
-SIODATAA:	equ	$f0
-SIODATAB: 	equ	$f1
-SIOCMDA:  	equ	$f2
-SIOCMDB:  	equ	$f3
+SIODATAA:	equ	00f0h
+SIODATAB: 	equ	00f1h
+SIOCMDA:  	equ	00f2h
+SIOCMDB:  	equ	00f3h
 
 ; General port
-OUTPORT:	equ	$00
+OUTPORT:	equ	00h
 
 
 
@@ -107,16 +107,19 @@ OUTPORT:	equ	$00
 ; * *** Local initialization ***
 ; *
 
-	ld a, $1 : out (OUTPORT), a
+	ld a, 1h
+	out (OUTPORT), a
 	
 	call VD_CONFIGURE
 	
-	ld a, $2 : out (OUTPORT), a
+	ld a, 2h
+	out (OUTPORT), a
 	
 	ld a, 0
 	call KD_CONFIGURE
 	
-	ld a, $3 : out (OUTPORT), a
+	ld a, 3h
+	out (OUTPORT), a
 
 	jr INIT
 	
@@ -133,7 +136,7 @@ OUTPORT:	equ	$00
 INIT:	ld sp, STACK
 	call CRLF
 	ld hl, KEYWRD	; At power on KEYWRD is
-	ld a, $c3	; probably not c3
+	ld a, 00c3h	; probably not c3
 	cp (hl)
 	jp z, TELL	; It is C3, continue
 	ld (hl), a	; No. Set it to C3
@@ -143,7 +146,7 @@ INIT:	ld sp, STACK
 	ld (RANPNT+1), a
 PURGE:	ld hl, TEXT+4	; Purge text area
 	ld (TXTUNF), hl
-	ld h, $ff
+	ld h, 00ffh
 	ld (TEXT), hl
 TELL:	ld de, MSG	; Tell user
 	call PRTSTG	;  ***********************
@@ -209,10 +212,10 @@ ST3:	pop bc	     	; Get ready to insert
 	push hl		; is 3 (Line # and CR)
 	cp 3 		; then do not insert
 	jp z, RSTART	; Must clear the stack
-	add l 		; Compute new TXTUNF
+	add a, l 	; Compute new TXTUNF
 	ld e, a
 	ld a, 0
-	adc h
+	adc a, h
 	ld d, a		; de->new unfilled area
 	ld hl, (TXTUNF)	; Check to see if there
 	ex de, hl
@@ -262,7 +265,7 @@ EX1:	ld a, (de)	; If found '.' in String
 	inc hl		; hl->table
 	cp (hl)		; If match, test next
 	jr z, EX1
-	ld a, $7f	; else, see if bit 7
+	ld a, 7fh	; else, see if bit 7
 	dec de		; of table is set, which
 	cp (hl)		; is the jump addr. (HI)
 	jr c, EX5	; C: Yes, Matched
@@ -272,14 +275,14 @@ EX2:	inc hl		; NC: No, find jump addr
 	inc hl		; Bump to next tab. item
 	pop de		; Restore String pointer
 	jr EXEC		; test against next item
-EX3:	ld a, $7f	; Partial match, find
+EX3:	ld a, 7fh	; Partial match, find
 EX4:	inc hl		; jump addr., which is
 	cp (hl)		; flagged by bit 7
 	jr c, EX4
 EX5:	ld a, (hl)	; Load hl with the jump
 	inc hl		; address from the table
 	ld l, (hl)	;  ****************
-	and $ff		; ***** AND 7f *****
+	and 00ffh	; ***** AND 7f *****
 	ld h, a		;  ****************
 	pop AF		; Clean up the garbage
 	jp (hl)		; and we go do it
@@ -389,7 +392,7 @@ GOTO:	call EXPR	; *** GOTO EXPR ***
 
 LIST:	call TSTNUM	; Test if there is a #
 	push hl
-	ld hl, $ffff
+	ld hl, 00ffffh
 	TSTC ',', LS1
 	call TSTNUM
 LS1:	ex (sp), hl
@@ -417,7 +420,7 @@ PR1:	TSTC '\n', PR6	; If null list (CR)
 	jp RUNNXL	; go to next line
 PR2:	TSTC '#', PR4	; else is it format?
 PR3:	call EXPR 	; Yes, evaluate EXPR
-	ld a, $c0
+	ld a, 00c0h
 	and l
 	or h
 	jp nz, QHOW
@@ -967,7 +970,7 @@ SUBDE:	ld a, l		; *** SUBDE ***
 	sub e 		; Subtract DE from
 	ld l, a		; HL
 	ld a, h
-	sbc d
+	sbc a, d
 	ld h, a
 	ret
 
@@ -990,7 +993,7 @@ CHGSGN:	ld a, h		; *** CHGSGN ***
 	xor h
 	jp QHOW
 	ld a, b		; And also flip B
-	xor $80
+	xor 80h
 	ld b, a
 	ret
 
@@ -1123,14 +1126,14 @@ FNDLN:	ld a, h	      ; *** FNDLN ***
 FNDLP:	inc de 	      ; Is it EOT mark?
 	ld a, (de)
 	dec de
-	add a
+	add a, a
 	ret c		; C, NZ passed end
 	ld a, (de)	; We did not. Get byte 1
 	sub l 		; is this the line?
 	ld b, a		; compare low byte
 	inc de
 	ld a, (de)	; Get byte 2
-	sbc h 		; compare high order
+	sbc a, h 	; compare high order
 	jr c, FL1	; no, not there yet
 	dec de		; else we either found
 	or b		; it, or it is not there
@@ -1168,10 +1171,10 @@ TV1	cp 27		; not @, is it A to Z?
 	inc de		; If A through Z
 	ld hl, VARBGN-2
 	rla		; HL->Variable
-	add l		; Return
+	add a, l	; Return
 	ld l, a		; With c flag cleared
 	ld a, 0
-	adc h
+	adc a, h
 	ld h, a
 	ret
 	
@@ -1213,9 +1216,9 @@ TSTNUM:	ld hl, 0	; *** TSTNUM ***
 	call IGNBLK	; a number
 TN1:	cp '0'		; If not, return 0 in
 	ret c		; B and HL
-	cp $3a		; IF numbers, convert
+	cp 3ah		; IF numbers, convert
 	ret nc		; to binary in HL and
-	ld a, $f0	; set B to # of digits
+	ld a, 00f0h	; set B to # of digits
 	and h 		; if h>255, there is no
 	jr nz, QHOW	; room for next digit
 	inc b  		; B counts # of digits
@@ -1228,11 +1231,11 @@ TN1:	cp '0'		; If not, return 0 in
 	add hl, hl
 	ld a, (de)	; and (digit) is from
 	inc de		; stripping the ASCII
-	and $0f		; code
-	add l
+	and 0fh		; code
+	add a, l
 	ld l, a
 	ld a, 0
-	adc h
+	adc a, h
 	ld h, a
 	pop bc
 	ld a, (de)	; Do this digit after
@@ -1373,12 +1376,12 @@ QT2:	cp '\n'		; Was last one a CR?
 	inc hl
 	inc hl
 	jp (hl)		; return
-QT3:	TSTC $27, QT4	; Is it a '?
-	ld a, $27 	; Yes, do same
+QT3:	TSTC 27h, QT4	; Is it a '?
+	ld a, 27h 	; Yes, do same
 	jr QT1		; as in "
-QT4:	TSTC $5e, QT5	; Is it an up-arrow?
+QT4:	TSTC 5eh, QT5	; Is it an up-arrow?
 	ld a, (de)	; Yes, convert character
-	xor $40		; To control-Ch
+	xor 40h		; To control-Ch
 	call OUTCH
 	ld a, (de)	; Just in case it is a CR
 	inc de
@@ -1393,7 +1396,7 @@ PRTCHS:	ld a, e
 	inc de
 	jr PRTCHS
 
-PRTNUM:	ds 0		; *** PRTNUM ***
+PRTNUM:	db 0		; *** PRTNUM ***
 PN3:	ld b, 0		; B=Sign
 	call CHKSGN	; Check Sign
 	jp p, PN4	; No sign
@@ -1430,7 +1433,7 @@ PN9:	ld a, e		; Check digit in E
 	cp 10 		; 10 is flag for no more
 	pop de
 	ret z		; If so, return
-	add '0'		; Else convert to ASCII
+	add a, '0'	; Else convert to ASCII
 	call OUTCH	; and print the digit
 	jr PN9		; Go back for more
 
@@ -1446,30 +1449,45 @@ PRTLN:	ld a, (de)	; *** PRTLN ***
 	call OUTCH
 	ret
 
-TAB1:	db "LIST" : dwa LIST	; Direct Commands
-	db "NEW" : dwa NEW
-	db "RUN" : dwa RUN
+TAB1:	db "LIST"
+	dwa LIST	; Direct Commands
+	db "NEW"
+	dwa NEW
+	db "RUN"
+	dwa RUN
 
 TAB2:
 ;	db "NEXT" : dwa NEXT	; Direct/Statement
-	db "LET" : dwa LET
-	db "IF" : dwa IFF
-	db "GOTO" : dwa GOTO
+	db "LET"
+	dwa LET
+	db "IF"
+	dwa IFF
+	db "GOTO"
+	dwa GOTO
 ;	db "GOSUB" : dwa GOSUB
 ;	db "RETURN" : dwa RETURN
-	db "REM" : dwa REM
+	db "REM"
+	dwa REM
 ;	db "FOR" : dwa FOR
-	db "INPUT" : dwa INPUT
-	db "PRINT" : dwa PRINT
-	db "STOP" : dwa STOP
-	db 0 : dwa MOREC
+	db "INPUT"
+	dwa INPUT
+	db "PRINT"
+	dwa PRINT
+	db "STOP"
+	dwa STOP
+	db 0
+	dwa MOREC
 
 MOREC:	jp DEFLT		; *** JMP USER-COMMAND ***
 
-TAB3:	db "RND" : dwa RND		; Functions
-	db "ABS" : dwa ABS
-	db "SIZE" : dwa SIZE
-	db 0 : dwa MOREF
+TAB3:	db "RND"
+	dwa RND		; Functions
+	db "ABS"
+	dwa ABS
+	db "SIZE"
+	dwa SIZE
+	db 0
+	dwa MOREF
 MOREF:	jp NOTF			; *** JMP USER-FUNCTION ***
 
 TAB4:
@@ -1479,13 +1497,20 @@ TAB5:
 ;	db "STEP" : dwa FR2	; "FOR" command
 ;	db 0 : dwa FR3
 
-TAB6:	db ">=" : dwa XPR1		; Relation operators
-	db "#" : dwa XPR2
-	db ">" : dwa XPR3
-	db "=" : dwa XPR5
-	db "<=" : dwa XPR4
-	db "<" : dwa XPR6
-	db 0 : dwa XPR7
+TAB6:	db ">="
+	dwa XPR1		; Relation operators
+	db "#"
+	dwa XPR2
+	db ">"
+	dwa XPR3
+	db "="
+	dwa XPR5
+	db "<="
+	dwa XPR4
+	db "<"
+	dwa XPR6
+	db 0
+	dwa XPR7
 RANEND:	EQU $
 
 
@@ -1639,12 +1664,12 @@ KD_CONVERT:
 	ld hl, KB_PS2_COUNT	; Increase counter
 	inc (hl)
 
-	and $e0			; Test for longer sequences (two top bits)
-	cp $e0
+	and 00e0h			; Test for longer sequences (two top bits)
+	cp 00e0h
 	jr nz, .test_value	; Jump if this may be a character
 
 	ld a, e
-	cp $F0			; Test for Break
+	cp 00F0h			; Test for Break
 	jr nz, .test_extended	; Jump if this is not a Break
 
 	ld a, KD_STATE_BREAK
@@ -1653,7 +1678,7 @@ KD_CONVERT:
 	jr .done
 
 .test_extended:
-	cp $E0			; Test for Extended
+	cp 00E0h			; Test for Extended
 	jr nz, .test_pause	; Jump if this is not a Extended
 
 	ld a, KD_STATE_EXTENDED
@@ -1662,7 +1687,7 @@ KD_CONVERT:
 	jr .done
 
 .test_pause:
-	cp $E1			; Test for Extended
+	cp 00E1h			; Test for Extended
 	jr nz, .reset_flags	; Jump if this is not a Extended
 
 	ld a, KD_STATE_PAUSE
@@ -1677,7 +1702,7 @@ KD_CONVERT:
 
 
 	ld a, (KB_PS2_COUNT)
-	and $8			; Check if we're at the end of the pause seq
+	and 8h			; Check if we're at the end of the pause seq
 	jr nz, .reset_flags	; Reset flags and count
 
 	jr .done		; We're not in the end, just continue
@@ -1688,7 +1713,7 @@ KD_CONVERT:
 	jr z, .test_ext_set
 	
 	ld a, e
-	cp $7c
+	cp 7ch
 	jr nz, .reset_flags
 
 	jr .done
@@ -1699,14 +1724,14 @@ KD_CONVERT:
 	jr z, .lookup
 
 	ld a, e
-	cp $12
+	cp 12h
 	jr nz, .reset_flags
 	
 	jr .done
 
 .lookup:
 	ld a, e
-	cp $5f
+	cp 5fh
 	jp p, .reset_flags
 
 	ld d, 0
@@ -1734,119 +1759,119 @@ KD_CONVERT:
 KD_SCANCODES:	; Scan Code set 2
 
 
-	byte 0, 0, 0, 0, 0, 0, 0, 0
-	byte 0, 0, 0, 0, 0, 0, '`', 0
-	byte 0, 0, 0, 0, 0, 'Q', '1', 0
-	byte 0, 0, 'Z', 'S', 'A', 'W', '2', 0
-	byte 0, 'C', 'X', 'D', 'E', '4', '3', 0
-	byte 0, ' ', 'V', 'F', 'T', 'R', '5', 0
-	byte 0, 'N', 'B', 'H', 'G', 'Y', '6', 0
-	byte 0, 0, 'M', 'J', 'U', '7', '8', 0
-	byte 0, ',', 'K', 'I', 'O', '0', '9', 0
-	byte 0, '.', '/', 'L', ';', 'P', '-', 0
-	byte 0, 0, 0, 0, '[', '=', 0, 0
-	byte 0, 0, '\n', ']', 0, '\\', 0, 0
+	db 0, 0, 0, 0, 0, 0, 0, 0
+	db 0, 0, 0, 0, 0, 0, '`', 0
+	db 0, 0, 0, 0, 0, 'Q', '1', 0
+	db 0, 0, 'Z', 'S', 'A', 'W', '2', 0
+	db 0, 'C', 'X', 'D', 'E', '4', '3', 0
+	db 0, ' ', 'V', 'F', 'T', 'R', '5', 0
+	db 0, 'N', 'B', 'H', 'G', 'Y', '6', 0
+	db 0, 0, 'M', 'J', 'U', '7', '8', 0
+	db 0, ',', 'K', 'I', 'O', '0', '9', 0
+	db 0, '.', '/', 'L', ';', 'P', '-', 0
+	db 0, 0, 0, 0, '[', '=', 0, 0
+	db 0, 0, '\n', ']', 0, '\\', 0, 0
 
 KD_SCANCODES_LEN:    equ $ - KD_SCANCODES
 
-KD_STATE_BREAK			= %10000000
-KD_STATE_EXTENDED		= %01000000
-KD_STATE_PAUSE			= %00100000
-KD_STATE_CAPS			= %00010000
-KD_STATE_NUM			= %00001000
-KD_STATE_CTRL			= %00000100
-KD_STATE_ALT			= %00000010
-KD_STATE_SHIFT			= %00000001
+KD_STATE_BREAK			= 10000000b
+KD_STATE_EXTENDED		= 01000000b
+KD_STATE_PAUSE			= 00100000b
+KD_STATE_CAPS			= 00010000b
+KD_STATE_NUM			= 00001000b
+KD_STATE_CTRL			= 00000100b
+KD_STATE_ALT			= 00000010b
+KD_STATE_SHIFT			= 00000001b
 
 
 
-KD_RD0_BREAK			= %10000000
-KD_RD0_UNDERUN_EOM		= %01000000
-KD_RD0_CTS			= %00100000
-KD_RD0_SYNC_HUNT		= %00010000
-KD_RD0_DCD			= %00001000
-KD_RD0_TX_EMPTY			= %00000100
-KD_RD0_INT_PEND			= %00000010
-KD_RD0_DATA_AV			= %00000001
+KD_RD0_BREAK			= 10000000b
+KD_RD0_UNDERUN_EOM		= 01000000b
+KD_RD0_CTS			= 00100000b
+KD_RD0_SYNC_HUNT		= 00010000b
+KD_RD0_DCD			= 00001000b
+KD_RD0_TX_EMPTY			= 00000100b
+KD_RD0_INT_PEND			= 00000010b
+KD_RD0_DATA_AV			= 00000001b
 
-KD_WR0_REG0			= %00000000
-KD_WR0_REG1 			= %00000001
-KD_WR0_REG2 			= %00000010
-KD_WR0_REG3 			= %00000011
-KD_WR0_REG4 			= %00000100
-KD_WR0_REG5 			= %00000101
-KD_WR0_REG6 			= %00000110
-KD_WR0_REG7 			= %00000111
+KD_WR0_REG0			= 00000000b
+KD_WR0_REG1 			= 00000001b
+KD_WR0_REG2 			= 00000010b
+KD_WR0_REG3 			= 00000011b
+KD_WR0_REG4 			= 00000100b
+KD_WR0_REG5 			= 00000101b
+KD_WR0_REG6 			= 00000110b
+KD_WR0_REG7 			= 00000111b
 
-KD_WR0_CMD_NULL			= %00000000
-KD_WR0_CMD_ABORT 		= %00001000
-KD_WR0_CMD_RST_EXT_STS_INTS	= %00010000
-KD_WR0_CMD_CHNL_RST 		= %00011000
-KD_WR0_CMD_EN_INT_NXT_RX_CHR 	= %00100000
-KD_WR0_CMD_RST_TX_INT 		= %00101000
-KD_WR0_CMD_ERR_RST 		= %00110000
-KD_WR0_CMD_RTN_FRM_INT 		= %00111000
+KD_WR0_CMD_NULL			= 00000000b
+KD_WR0_CMD_ABORT 		= 00001000b
+KD_WR0_CMD_RST_EXT_STS_INTS	= 00010000b
+KD_WR0_CMD_CHNL_RST 		= 00011000b
+KD_WR0_CMD_EN_INT_NXT_RX_CHR 	= 00100000b
+KD_WR0_CMD_RST_TX_INT 		= 00101000b
+KD_WR0_CMD_ERR_RST 		= 00110000b
+KD_WR0_CMD_RTN_FRM_INT 		= 00111000b
 
-KD_WR0_CRC_NULL			= %00000000
+KD_WR0_CRC_NULL			= 00000000b
 
-KD_WR1_WR_EN			= %00000000
-KD_WR1_WR_FUNC			= %01000000
-KD_WR1_WR_ON_RT			= %00100000
+KD_WR1_WR_EN			= 00000000b
+KD_WR1_WR_FUNC			= 01000000b
+KD_WR1_WR_ON_RT			= 00100000b
 
-KD_WR1_RX_INT_DIS		= %00000000
-KD_WR1_RX_INT_FIRST		= %00001000
-KD_WR1_RX_INT_ALL_PRT		= %00010000
-KD_WR1_RX_INT_ALL		= %00011000
+KD_WR1_RX_INT_DIS		= 00000000b
+KD_WR1_RX_INT_FIRST		= 00001000b
+KD_WR1_RX_INT_ALL_PRT		= 00010000b
+KD_WR1_RX_INT_ALL		= 00011000b
 
-KD_WR1_ST_AFF_INT_VEC		= %00000100
-KD_WR1_TX_INT			= %00000010
-KD_WR1_EXT_INT			= %00000001
+KD_WR1_ST_AFF_INT_VEC		= 00000100b
+KD_WR1_TX_INT			= 00000010b
+KD_WR1_EXT_INT			= 00000001b
 
 
-KD_WR3_RX_5BITS			= %00000000
-KD_WR3_RX_7BITS			= %01000000
-KD_WR3_RX_6BITS			= %10000000
-KD_WR3_RX_8BITS			= %11000000
+KD_WR3_RX_5BITS			= 00000000b
+KD_WR3_RX_7BITS			= 01000000b
+KD_WR3_RX_6BITS			= 10000000b
+KD_WR3_RX_8BITS			= 11000000b
 
-KD_WR3_AUTO_EN			= %00100000
-KD_WR3_HUNT			= %00010000
-KD_WR3_RX_CRC			= %00001000
-KD_WR3_ADDR_SRC_SDLC		= %00000100
-KD_WR3_SNC_CHAR_L		= %00000010
-KD_WR3_RX_EN			= %00000001
+KD_WR3_AUTO_EN			= 00100000b
+KD_WR3_HUNT			= 00010000b
+KD_WR3_RX_CRC			= 00001000b
+KD_WR3_ADDR_SRC_SDLC		= 00000100b
+KD_WR3_SNC_CHAR_L		= 00000010b
+KD_WR3_RX_EN			= 00000001b
 
-KD_WR4_CLK_X1			= %00000000
-KD_WR4_CLK_X16			= %01000000
-KD_WR4_CLK_X32			= %10000000
-KD_WR4_CLK_X64			= %11000000
+KD_WR4_CLK_X1			= 00000000b
+KD_WR4_CLK_X16			= 01000000b
+KD_WR4_CLK_X32			= 10000000b
+KD_WR4_CLK_X64			= 11000000b
 
-KD_WR4_SNC_8B			= %00000000
-KD_WR4_SNC_16B			= %00010000
-KD_WR4_SNC_SDLC			= %00100000
-KD_WR4_SNC_EXT			= %00110000
+KD_WR4_SNC_8B			= 00000000b
+KD_WR4_SNC_16B			= 00010000b
+KD_WR4_SNC_SDLC			= 00100000b
+KD_WR4_SNC_EXT			= 00110000b
 
-KD_WR4_SNC_EN			= %00000000
-KD_WR4_STP_1			= %00000100
-KD_WR4_STP_15			= %00001000
-KD_WR4_STP_2			= %00001100
+KD_WR4_SNC_EN			= 00000000b
+KD_WR4_STP_1			= 00000100b
+KD_WR4_STP_15			= 00001000b
+KD_WR4_STP_2			= 00001100b
 
-KD_WR4_PRT_ODD			= %00000000
-KD_WR4_PRT_EVEN			= %00000010
+KD_WR4_PRT_ODD			= 00000000b
+KD_WR4_PRT_EVEN			= 00000010b
 
-KD_WR4_PRT_EN			= %00000001
+KD_WR4_PRT_EN			= 00000001b
 
-KD_WR5_DTR			= %10000000
+KD_WR5_DTR			= 10000000b
 
-KD_WR5_TX_5BITS			= %00000000
-KD_WR5_TX_7BITS			= %00100000
-KD_WR5_TX_6BITS			= %01000000
-KD_WR5_TX_8BITS			= %01100000
+KD_WR5_TX_5BITS			= 00000000b
+KD_WR5_TX_7BITS			= 00100000b
+KD_WR5_TX_6BITS			= 01000000b
+KD_WR5_TX_8BITS			= 01100000b
 
-KD_WR5_SND_BRK			= %00010000
-KD_WR5_TX_EN			= %00001000
-KD_WR5_SDLC_CRC16		= %00000100
-KD_WR5_RTS			= %00000010
-KD_WR5_TX_CRC			= %00000001
+KD_WR5_SND_BRK			= 00010000b
+KD_WR5_TX_EN			= 00001000b
+KD_WR5_SDLC_CRC16		= 00000100b
+KD_WR5_RTS			= 00000010b
+KD_WR5_TX_CRC			= 00000001b
 
 
 ; ***********************************************************
@@ -1941,12 +1966,12 @@ VD_MOVE_CURSOR_REL:
 ; Update and adjust the rows and columns
   	; Columns
 	ld a, (CURSOR_COL)
-	add c
+	add a, c
 	jp p, .check_col_overflow
 				; We had a column move
 	       			; ending in the previous line
 	dec b
-	add VIDEO_COLUMNS	; Adjust column
+	add a, VIDEO_COLUMNS	; Adjust column
 
 .check_col_overflow:
 	cp VIDEO_COLUMNS
@@ -1959,10 +1984,10 @@ VD_MOVE_CURSOR_REL:
 
 	; Rows
 	ld a, (CURSOR_ROW)
-	add b
+	add a, b
 	jp p, .check_row_overflow
 
-	add VIDEO_ROWS
+	add a, VIDEO_ROWS
 
 .check_row_overflow:
 	cp VIDEO_ROWS
@@ -2061,15 +2086,15 @@ VD_GET_CURSOR_ADDR:
 
 
 VD_INIT_TBL:
-	db $64, $50 ; Horizontal Total, Horizontal Displayed
-	db $52, $0c ; Horizontal Sync Pos, Sync Width
-	db $1f, $0c ; Vertical Total, Vertical Total Adjust
-	db $1e, $1f ; Vertical Displayed, Vertical Sync Position
-	db $00, $0f ; Interlace Mode, Maximum Scan Line Address
-	db $47, $0f ; Cursor start + mode, Cursor end
-	db $00, $00 ; Memory Start offset high, low
-	db $00, $00 ; Cursor address high, low
+	db 64h, 50h ; Horizontal Total, Horizontal Displayed
+	db 52h, 0ch ; Horizontal Sync Pos, Sync Width
+	db 1fh, 0ch ; Vertical Total, Vertical Total Adjust
+	db 1eh, 1fh ; Vertical Displayed, Vertical Sync Position
+	db 00h, 0fh ; Interlace Mode, Maximum Scan Line Address
+	db 47h, 0fh ; Cursor start + mode, Cursor end
+	db 00h, 00h ; Memory Start offset high, low
+	db 00h, 00h ; Cursor address high, low
 
-	org $07fe
-	word $0000
+	org 07feh
+	dw 0000h
 	end

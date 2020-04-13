@@ -87,7 +87,7 @@ KD_CALLBACK:
 	call KD_BUFFER_KEY	; Store ASCII in key buffer.
 
 .done
-	ld a, %00010000		; Pointer 0, Reset Ext/Status interrupts
+	ld a, 00010000b		; Pointer 0, Reset Ext/Status interrupts
 	out (SIOCMDB), a	; Restore interrupts
 	ret
 
@@ -275,12 +275,12 @@ KD_CONVERT:
 	ld hl, KB_PS2_COUNT	; Increase counter
 	inc (hl)
 
-	and $e0			; Test for longer sequences (two top bits)
-	cp $e0
+	and 00e0h			; Test for longer sequences (two top bits)
+	cp 00e0h
 	jr nz, .test_value	; Jump if this may be a character
 
 	ld a, e
-	cp $F0			; Test for Break
+	cp 00f0h			; Test for Break
 	jr nz, .test_extended	; Jump if this is not a Break
 
 	ld a, (KB_PS2_STATE)
@@ -289,7 +289,7 @@ KD_CONVERT:
 	jr .done
 
 .test_extended:
-	cp $E0			; Test for Extended
+	cp 00e0h			; Test for Extended
 	jr nz, .test_pause	; Jump if this is not a Extended
 
 	ld a, (KB_PS2_STATE)
@@ -298,7 +298,7 @@ KD_CONVERT:
 	jr .done
 
 .test_pause:
-	cp $E1			; Test for Extended
+	cp 00e1h			; Test for Extended
 	jr nz, .reset_flags	; Jump if this is not a Extended
 
 	ld a, (KB_PS2_STATE)
@@ -314,7 +314,7 @@ KD_CONVERT:
 
 
 	ld a, (KB_PS2_COUNT)
-	and $8			; Check if we're at the end of the pause seq
+	and 8h			; Check if we're at the end of the pause seq
 	jr nz, .reset_flags	; Reset flags and count
 
 	jr .done		; We're not in the end, just continue
@@ -325,7 +325,7 @@ KD_CONVERT:
 	jr z, .test_ext_set
 	
 	ld a, e
-	cp $7c
+	cp 7ch
 	jr nz, .reset_flags
 
 	jr .done
@@ -336,14 +336,14 @@ KD_CONVERT:
 	jr z, .lookup
 
 	ld a, e
-	cp $12
+	cp 12h
 	jr nz, .reset_flags
 	
 	jr .done
 
 .lookup:
 	ld a, e
-	cp $5f
+	cp 5fh
 	jp p, .reset_flags
 
 	ld d, 0
@@ -369,27 +369,27 @@ KD_CONVERT:
 KD_SCANCODES:	; Scan Code set 2
 
 
-	byte 0, 0, 0, 0, 0, 0, 0, 0
-	byte 0, 0, 0, 0, 0, 0, '`', 0
-	byte 0, 0, 0, 0, 0, 'Q', '1', 0
-	byte 0, 0, 'Z', 'S', 'A', 'W', '2', 0
-	byte 0, 'C', 'X', 'D', 'E', '4', '3', 0
-	byte 0, ' ', 'V', 'F', 'T', 'R', '5', 0
-	byte 0, 'N', 'B', 'H', 'G', 'Y', '6', 0
-	byte 0, 0, 'M', 'J', 'U', '7', '8', 0
-	byte 0, ',', 'K', 'I', 'O', '0', '9', 0
-	byte 0, '.', '/', 'L', ';', 'P', '-', 0
-	byte 0, 0, 0, 0, '[', '=', 0, 0
-	byte 0, 0, '\n', ']', 0, '\\', 0, 0
+	db 0, 0, 0, 0, 0, 0, 0, 0
+	db 0, 0, 0, 0, 0, 0, '`', 0
+	db 0, 0, 0, 0, 0, 'Q', '1', 0
+	db 0, 0, 'Z', 'S', 'A', 'W', '2', 0
+	db 0, 'C', 'X', 'D', 'E', '4', '3', 0
+	db 0, ' ', 'V', 'F', 'T', 'R', '5', 0
+	db 0, 'N', 'B', 'H', 'G', 'Y', '6', 0
+	db 0, 0, 'M', 'J', 'U', '7', '8', 0
+	db 0, ',', 'K', 'I', 'O', '0', '9', 0
+	db 0, '.', '/', 'L', ';', 'P', '-', 0
+	db 0, 0, 0, 0, '[', '=', 0, 0
+	db 0, 0, '\n', ']', 0, '\\', 0, 0
 
 KD_SCANCODES_LEN:    equ $ - KD_SCANCODES
 
-KD_STATE_BREAK			= %10000000
-KD_STATE_EXTENDED		= %01000000
-KD_STATE_PAUSE			= %00100000
-KD_STATE_CAPS			= %00010000
-KD_STATE_NUM			= %00001000
-KD_STATE_CTRL			= %00000100
-KD_STATE_ALT			= %00000010
-KD_STATE_SHIFT			= %00000001
+KD_STATE_BREAK			= 10000000b
+KD_STATE_EXTENDED		= 01000000b
+KD_STATE_PAUSE			= 00100000b
+KD_STATE_CAPS			= 00010000b
+KD_STATE_NUM			= 00001000b
+KD_STATE_CTRL			= 00000100b
+KD_STATE_ALT			= 00000010b
+KD_STATE_SHIFT			= 00000001b
 

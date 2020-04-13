@@ -1,5 +1,5 @@
 RESET:
-	ld a, $1
+	ld a, 1h
 	out (OUTPORT), a
 	ld sp, STACK_START
 ;	im 2
@@ -8,7 +8,7 @@ RESET:
 
 
 
-	org $0038
+	org 0038h
 SERIAL_INT:
 	ex af, af'
 	exx
@@ -20,9 +20,9 @@ SERIAL_INT:
 	
 
 
-	org $0100
+	org 0100h
 INIT:
-	ld a, $2
+	ld a, 2h
 	out (OUTPORT), a
 	; Do ram test
 	ld hl, VRAMBEG
@@ -31,13 +31,13 @@ INIT:
 	jr nc, .vramtest_succ
 
 .vramtest_err:
-	ld a, $aa
+	ld a, 00aah
 	out (OUTPORT), a
 	halt
 	jr .vramtest_err
 	
 .vramtest_succ:
-	ld a, $3
+	ld a, 3h
 	out (OUTPORT), a
 	; Do ram test
 ;	ld hl, RAMBEG
@@ -47,26 +47,26 @@ INIT:
 	jr .ramtest_succ
 
 .ramtest_err:
-	ld a, $55
+	ld a, 55h
 	out (OUTPORT), a
 	halt
 	jr .ramtest_err
 
 .ramtest_succ:
 .configure:
-	ld a, $4
+	ld a, 4h
 	out (OUTPORT), a
 
 	ld a, 0 ; Set no int vector and disable ints
 ;	ld a, $ff & SERIAL_INT	    ; Set int vector
 	call SER_CONFIGURE
 
-	ld a, $5
+	ld a, 5h
 	out (OUTPORT), a
 
 	call VD_CONFIGURE
 	
-	ld a, $6		; Indicate that the video has been configured
+	ld a, 6h		; Indicate that the video has been configured
 	out (OUTPORT), a
 
 	ld de, RDY
@@ -106,12 +106,12 @@ READNUM:
 	ld hl, 0
 .loop:	cp '0'		; Check if number (i.e. 0-9)
 	jr c, .done
-	cp $3a		; Test if > 9
+	cp 3ah		; Test if > 9
 	jr nc, .check_alpha	; Yes, check for alpha (i.e. a-f)
-	and $0f		; Convert from ASCII
+	and 0fh		; Convert from ASCII
 	jr .add_to_hl
 .check_alpha:
-	and $df		; Make upper case
+	and 00dfh		; Make upper case
 	cp 'A'
 	jr c, .done
 	cp 'G'
@@ -120,7 +120,7 @@ READNUM:
 .add_to_hl:		; Store A in HL
 	push bc
 	ld b, a		; Store A
-	ld a, $f0
+	ld a, 00f0h
 	and h		; Check if enough room in HL
 	jr nz, .error	; No, quit with error
 
@@ -254,23 +254,23 @@ PRINTNUM:
 	srl a
 	srl a
 
-	cp $a		; Check if the value is greater than or equal
+	cp 0ah		; Check if the value is greater than or equal
 	   		; to $a
 	jp m, .pn1	; No, it's below $a
-	add 'A'-'0'-10	; Yes, it's 10-15.
+	add a, 'A'-'0'-10	; Yes, it's 10-15.
 	    		; Add the difference between '0' and 'A'
 
-.pn1:	add '0'		; Convert into ASCII
+.pn1:	add a, '0'		; Convert into ASCII
 	call OUTCH	; Print first part
 
 	ld a, e		; Restore the original A
-	and $0f		; and mask the lower four bits
+	and 0fh		; and mask the lower four bits
 
-	cp $a		; Again, check if value is below $a
+	cp 0ah		; Again, check if value is below $a
 	jp m, .pn2	; No, it's below $a
-	add 'A'-'0'-10	; Yes, it's 10-15.
+	add a, 'A'-'0'-10	; Yes, it's 10-15.
 	    		; Add the difference between '0' and 'A'
-.pn2:	add '0'		; Convert into ASCII
+.pn2:	add a, '0'		; Convert into ASCII
 	call OUTCH	; Print second part
 	pop af
 	pop de
@@ -337,7 +337,7 @@ UCASE:	cp 'a'
 	ret c
 	cp 'z'+1
 	ret nc
-	and $df
+	and 00dfh
 	ret
 
 
@@ -356,15 +356,15 @@ GETLN:
 ;.gl2:	call SER_GET	; Get a character
 .gl2:	call SER_POLL	; Get a character
 	jr c, .gl2	; Wait for input
-	cp $03		; Is it Ctrl-C?
+	cp 03h		; Is it Ctrl-C?
 	jp z, RESET	; Yes, restart
 	cp '\n'		; Ignore LF
 	jr z, .gl2
 .gl3:	ld (de), a	; Save Ch
-	cp $08	 	; Is it back-space?
+	cp 08h	 	; Is it back-space?
 	jr nz, .gl4	; No, more tests
 	ld a, e		; Yes, delete?
-	cp IBUFFER & $00ff
+	cp IBUFFER & 00ffh
 	jr z, .gl2	; Nothing to delete
 	ld a, (de)	; Delete
 	dec de
@@ -372,7 +372,7 @@ GETLN:
 .gl4:	cp '\r'		; Was it CR?
 	jr z, .gl5	; Yes, end of line
 	ld a, e		; else, more free room?
-	cp IBUFEND & $00ff
+	cp IBUFEND & 00ffh
 	jr z, .gl2	; No, wait for CR/rub-out
 	ld a, (de)	; Yes, bump pointer
 	inc de
@@ -410,13 +410,13 @@ ERROR:	call PRTSTG
 ; Registers used:      Not sure
 ; ***********************************************************
 XMODEM:
-XM_SOH_C:	equ $01	; Start of heading
-XM_EOT_C:	equ $04 ; End of Transmission
-XM_ACK_C:	equ $06	; Acknowledge
-XM_NAK_C:	equ $15	; Not Acknowledge
-XM_ETB_C:	equ $17	; End of Transmission Block
-XM_CAN_C:	equ $18	; Cancel
-XM_INIT_C:	equ $43	; ASCII 'C' to start transmission
+XM_SOH_C:	equ 01h	; Start of heading
+XM_EOT_C:	equ 04h ; End of Transmission
+XM_ACK_C:	equ 06h	; Acknowledge
+XM_NAK_C:	equ 15h	; Not Acknowledge
+XM_ETB_C:	equ 17h	; End of Transmission Block
+XM_CAN_C:	equ 18h	; Cancel
+XM_INIT_C:	equ 43h	; ASCII 'C' to start transmission
 
 	call READNUM	; Read Address
 	push hl		; Store Address
@@ -573,10 +573,10 @@ CRC_il:
 	sla c		; Shift BC one left
 	rl b
 	jr nc, CRC_ld	; Check if CRC & $8000 was True
-	ld a, $21	; Yes, xor in $1021
+	ld a, 21h	; Yes, xor in $1021
 	xor c
 	ld c, a
-	ld a, $10
+	ld a, 10h
 	xor b
 	ld b, a
 CRC_ld:	dec e
@@ -594,20 +594,20 @@ CRC_ld:	dec e
 
 
 
-WHAT:	string "What?\n"
-HOW:	string "How?\n"
-ERR:	string "Error\n"
-RDY:	string "Ready!\n"
+WHAT:	db "What?\n", 0
+HOW:	db "How?\n", 0
+ERR:	db "Error\n", 0
+RDY:	db "Ready!\n", 0
 	
 
 CMD_TABLE:
-	string "DUMP"
+	db "DUMP", 0
 	dw PRINTMEM_ARG
-	string "ECHO"
+	db "ECHO", 0
 	dw ECHO
-	string "RUN"
+	db "RUN", 0
 	dw RUN_ARG
-	string "RX"
+	db "RX", 0
 	dw XMODEM
 
 	db 0
@@ -615,13 +615,13 @@ CMD_TABLE:
 CMD_TABLE_END:
 
 	
-	include "constants.s"
+	include "utils/constants.s"
 	include "utils/serial_driver.s"
 	include "utils/timing.s"
 	include "utils/ramtest.s"
 	include "utils/video_driver.s"
 	include "utils/strings.s"
 
-	org $07fe
-	word $0000
+	org 07feh
+	dw 0000h
 	end

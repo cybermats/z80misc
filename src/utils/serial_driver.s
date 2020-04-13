@@ -122,7 +122,7 @@ SG_FOUND:  			; Stuff is available
 	ld a, (hl)
 	ld d, a			; Store result temp
 	inc e
-	ld a, $0f
+	ld a, 0fh
 	and e
 	ld (SR_START_PTR), a
 	ld a, d
@@ -151,7 +151,7 @@ SER_CALLBACK:
 	in a, (SIODATAB)	; Read data
 	ld (hl), a
 	inc e
-	ld a, $0f
+	ld a, 0fh
 	and e
 	ld (SR_END_PTR), a
 	

@@ -1,6 +1,6 @@
-I2C_ADDR:     equ  $70		    ; I2C Address
-SEG_BRGHT:    equ  $01		    ; Screen brightness
-VIDRAM:	      equ  $8000     ; Video RAM
+I2C_ADDR:     equ  70h		    ; I2C Address
+SEG_BRGHT:    equ  01h		    ; Screen brightness
+VIDRAM:	      equ  8000h     ; Video RAM
 
 
 	      
@@ -43,14 +43,14 @@ segment_ostat:
 				    ; Console output 1 byte
 segment_out:
 	      ld    e, a	    ; Save byte
-	      or    $f		    ; Mask lower 16 bytes
+	      or    0fh		    ; Mask lower 16 bytes
 	      ld    (VIDRAM + 4), a
 	      ld    a, e
 	      rra		    ; Mask next 16 bytes
 	      rra
 	      rra
 	      rra
-	      or    $f
+	      or    0fh
 	      ld    (VIDRAM + 3), a
 
 	      call  segment_show
@@ -74,50 +74,50 @@ segment_out:
 	      
 segment_init:			    
 	      ld    a, I2C_D1_C1    ; Initialize i2c
-	      out   ($ff), a
+	      out   (00ffh), a
 	      ld    a, I2C_D0_C1    ; Send start frame
-	      out   ($ff), a
+	      out   (00ffh), a
 	      
 	      ld    a, I2C_ADDR	    ; Send address for system
 	      sla   a		    ; adjust address to be the top 7 bits, with a 0 at the end for "writing".
 	      call  i2cchar
-	      ld    a, $21	    ; Set up system
+	      ld    a, 21h	    ; Set up system
 	      call  i2cchar
 	      
 	      ld    a, I2C_D0_C1    ; Send end frame
-	      out   ($ff), a
+	      out   (00ffh), a
 	      ld    a, I2C_D1_C1
-	      out   ($ff), a
+	      out   (00ffh), a
 	      
 	      ld    a, I2C_D0_C1    ; Send start frame
-	      out   ($ff), a
+	      out   (00ffh), a
 	      
 	      ld    a, I2C_ADDR	    ; Send address for system
 	      sla   a		    ; adjust address to be the top 7 bits, with a 0 at the end for "writing".
 	      call  i2cchar
-	      ld    a, $80	    ; Display setup
-	      or    a, $01	    ; Display on
+	      ld    a, 80h	    ; Display setup
+	      or    a, 01h	    ; Display on
 	      call  i2cchar
 				    
 	      ld    a, I2C_D0_C1    ; Send end frame
-	      out   ($ff), a
+	      out   (00ffh), a
 	      ld    a, I2C_D1_C1
-	      out   ($ff), a
+	      out   (00ffh), a
 	      
 	      ld    a, I2C_D0_C1    ; Send start frame
-	      out   ($ff), a
+	      out   (00ffh), a
 				    
 	      ld    a, I2C_ADDR	    ; Send address for system
 	      sla   a		    ; adjust address to be the top 7 bits, with a 0 at the end for "writing".
 	      call  i2cchar
-	      ld    a, $e0	    ; Brightness command
+	      ld    a, 00e0h	    ; Brightness command
 	      or    a, SEG_BRGHT    ; Brightness
 	      call  i2cchar
 	      
 	      ld    a, I2C_D0_C1    ; Send end frame
-	      out   ($ff), a
+	      out   (00ffh), a
 	      ld    a, I2C_D1_C1
-	      out   ($ff), a
+	      out   (00ffh), a
 
 	      sub   a		    ; Status = No Errors
 	      
@@ -144,22 +144,22 @@ segment_show:
 	      push  bc
 				    
 	      ld    a, I2C_D1_C1    ; Initialize i2c
-	      out   ($ff), a
+	      out   (00ffh), a
 	      ld    a, I2C_D0_C1    ; Send start frame
-	      out   ($ff), a
+	      out   (00ffh), a
 	      
 	      ld    a, I2C_ADDR	    ; Send address for system
 	      sla   a		    ; adjust address to be the top 7 bits, with a 0 at the end for "writing".
 	      call  i2cchar
 	      
-	      ld    a, $00	    ; Set address to 00h
+	      ld    a, 00h	    ; Set address to 00h
 	      call  i2cchar
 	      
 	      ld    hl, VIDRAM
-	      ld    b, $05
+	      ld    b, 05h
 segment_loop:			    
 	      ld    a, (hl)
-	      ld    d, (font >> 8) & $ff
+	      ld    d, (font >> 8) & 00ffh
 	      ld    e, a
 	      ld    a, (de)
 				    
@@ -178,7 +178,7 @@ segment_loop:
 
 				    ; Default value for frame buffer
 screen_init:			    
-	      defb $00, $00, $10, $00, $00
+	      defb 00h, 00h, 10h, 00h, 00h
 screen_init_len: 
 	      defb $ - screen_init
 
@@ -195,11 +195,12 @@ SEGDV:
 	      dw    0		    ; No segment output n bytes
 	      
 	      
-	      org  $400
+	      org  0400h
 font:	      
-	      defb $3F,$06,$5B,$4F, $66,$6D,$7D,$07, $7F,$6F,$77,$7C, $39,$5E,$79,$71 ; All digits, 0-9a-f
-       	      defb $00, $02
+	      defb 3Fh,06h,5Bh,4Fh, 66h,6Dh,7Dh,07h, 7Fh,6Fh,77h,7Ch, 39h,5Eh,79h,71h ; All digitsh, 0-9a-f
+       	      defb 00h, 02h
 	      
 
 
-	      include "utils/i2c.s"
+;	      include "utils/i2c.s"
+	      include "i2c.s"

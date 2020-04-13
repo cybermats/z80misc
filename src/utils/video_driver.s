@@ -66,7 +66,7 @@ VD_CONFIGURE:
 VD_OUT:
 	cp '\n'			; Check for newline
 	jr z, .eol
-	cp $08			; Check backspace
+	cp 08h			; Check backspace
 	jr z, .bspc
 	
 	push de
@@ -140,7 +140,7 @@ VD_OUTN:
 	ld a, (hl)
 	or a		; Check end of string
 	jr z, .done
-	cp $0a		; Check new-line
+	cp 0ah		; Check new-line
 	jr z, .eol
 
 	push bc
@@ -246,12 +246,12 @@ VD_MOVE_CURSOR_REL:
 ; Update and adjust the rows and columns
   	; Columns
 	ld a, (CURSOR_COL)
-	add c
+	add a, c
 	jp p, .check_col_overflow
 				; We had a column move
 	       			; ending in the previous line
 	dec b
-	add VIDEO_COLUMNS	; Adjust column
+	add a, VIDEO_COLUMNS	; Adjust column
 
 .check_col_overflow:
 	cp VIDEO_COLUMNS
@@ -264,10 +264,10 @@ VD_MOVE_CURSOR_REL:
 
 	; Rows
 	ld a, (CURSOR_ROW)
-	add b
+	add a, b
 	jp p, .check_row_overflow
 
-	add VIDEO_ROWS
+	add a, VIDEO_ROWS
 
 .check_row_overflow:
 	cp VIDEO_ROWS
@@ -365,11 +365,11 @@ VD_UPDATE_CURSOR:
 
 
 VD_INIT_TBL:
-	db $64, $50 ; Horizontal Total, Horizontal Displayed
-	db $52, $0c ; Horizontal Sync Pos, Sync Width
-	db $1f, $0c ; Vertical Total, Vertical Total Adjust
-	db $1e, $1f ; Vertical Displayed, Vertical Sync Position
-	db $00, $0f ; Interlace Mode, Maximum Scan Line Address
-	db $47, $0f ; Cursor start + mode, Cursor end
-	db $00, $00 ; Memory Start offset high, low
-	db $00, $00 ; Cursor address high, low
+	db 64h, 50h ; Horizontal Total, Horizontal Displayed
+	db 52h, 0ch ; Horizontal Sync Pos, Sync Width
+	db 1fh, 0ch ; Vertical Total, Vertical Total Adjust
+	db 1eh, 1fh ; Vertical Displayed, Vertical Sync Position
+	db 00h, 0fh ; Interlace Mode, Maximum Scan Line Address
+	db 47h, 0fh ; Cursor start + mode, Cursor end
+	db 00h, 00h ; Memory Start offset high, low
+	db 00h, 00h ; Cursor address high, low

@@ -2,24 +2,24 @@
 
 RESET:
 	di
-	ld a, $1
+	ld a, 1h
 	out (OUTPORT), a
 	ld SP, STACK_START		; Set Stack to end of memory
-	ld a, $00			; Set up interrupt page
+	ld a, 00h			; Set up interrupt page
 	ld i, a				; 
 	im 2				; Set interrupt mode 2
 	ei 				; Enable interrupt
 	jp INIT
 
 ; Keyboard interrupt received
-  	org $0038
+  	org 0038h
 KEYBOARD_INT:
 	push af
 	in a, (SIODATAB)
 	out (OUTPORT), a
-	ld a, %00010000
+	ld a, 00010000b
 	out (SIOCMDB), a
-	ld a, %00110000
+	ld a, 00110000b
 	out (SIOCMDB), a
 
 	call KD_CALLBACK
@@ -28,9 +28,9 @@ KEYBOARD_INT:
 	reti
 
 ; Non-maskable interrupt received
-  	org $0066
+  	org 0066h
 NMI:
-	ld a, $0f			; Indicate that an NMI has been received.
+	ld a, 0fh			; Indicate that an NMI has been received.
 	out (OUTPORT), a
 	ld a, 250
 	call DELAY
@@ -46,10 +46,10 @@ NMI:
 ; ********************************************
 
 
-	org $0100
+	org 0100h
 INIT:
 	; Prepare system
-	ld a, $2			; Indicate that the system starts
+	ld a, 2h			; Indicate that the system starts
 	out (OUTPORT), a
 
 	; Do ram test
@@ -59,7 +59,7 @@ INIT:
 	jr nc, .ramtest_succ
 
 .ramtest_err:
-	ld a, $aa
+	ld a, 00aah
 	out (OUTPORT), a
 	halt
 	jr .ramtest_err
@@ -67,12 +67,12 @@ INIT:
 .ramtest_succ:
 .configure:
 
-	ld a, $3		; Indicate that the system starts
+	ld a, 3h		; Indicate that the system starts
 	out (OUTPORT), a
 
 	call VD_CONFIGURE
 	
-	ld a, $4		; Indicate that the video has been configured
+	ld a, 4h		; Indicate that the video has been configured
 	out (OUTPORT), a
 
 	ld hl, MSG_INIT
@@ -86,7 +86,7 @@ INIT:
 	ld a, 0			; Set no int vector and disable ints
 	call KD_CONFIGURE
 
-	ld a, $5		; Indicate that the keyboard has been configured
+	ld a, 5h		; Indicate that the keyboard has been configured
 	out (OUTPORT), a
 
 	ld hl, MSG_KB2
@@ -105,11 +105,11 @@ MAIN:
 	call KD_POLL_CODE
 	jr c, MAIN
 
-	ld hl, $8200
+	ld hl, 8200h
 	ld bc, 8
 	call ITOA
 
-	ld hl, $8200
+	ld hl, 8200h
 	ld bc, 8
 	call VD_OUTN
 
@@ -128,8 +128,7 @@ MAIN:
 	jr MAIN			; Loop back
 
 
-	include "constants.s"
-	include "utils/macro.s"
+	include "utils/constants.s"
 	include "utils/ramtest.s"
 	include "utils/timing.s"
 	include "utils/video_driver.s"
@@ -142,6 +141,6 @@ MESSAGES:
 	msg MSG_KB2, "Keyboard initialized.\n"
 	msg MSG_DONE, "System started\n"
 
-	org $07fe
-	word $0000
+	org 07feh
+	dw 0000h
 	end

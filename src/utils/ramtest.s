@@ -47,17 +47,17 @@ RAMTST:
 	ret c 		; Exit if error found
 
 	; Fill memory with FF HEX (all 1s) and test
-	ld a, $ff 
+	ld a, 00ffh
 	call FILCMP
 	ret c 		; Exit if error found
 
 	; Fill memory with AA hex (alternating 1s and 0s) and test
-	ld a, $aa
+	ld a, 00aah
 	call FILCMP
 	ret c 		; Exit if error found
 
 	; Fill memory with 55 hex (alternating 1s and 0s) and test
-	ld a, $55
+	ld a, 0055h
 	call FILCMP
 	ret c 		; Exit if error found
 
@@ -68,14 +68,14 @@ RAMTST:
 	; bits 6, 5, 4, 3, 2, 1 and 0 and see if it can 
 	; be read back.
 WLKLP:
-	ld a, $80	; Make bit 7 1, all other bits 0
+	ld a, 0080h	; Make bit 7 1, all other bits 0
 WLKLP1:
 	ld (hl), a 	; Store test pattern in memory
 	cp (hl)		; Try to read it back
 	scf			; Set carry in case of error 
 	ret nz		; Return if error 
 	rrca		; Rotate pattern to move 1 right
-	cp $80		
+	cp 0080h		
 	jr nz, WLKLP1 ; Continue until 1 is back in bit 7
 	ld (hl), 0	; Clear byte just checked
 	inc hl

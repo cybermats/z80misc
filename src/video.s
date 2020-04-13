@@ -2,16 +2,16 @@
 
 RESET:
 	di
-	ld a, $1
+	ld a, 01h
 	out (OUTPORT), a
 	ld    SP, STACK_START	    ; Set Stack to end of memory
 	jp INIT
 
-	org $0100
+	org 0100h
 	
 INIT:
 	; Prepare system
-	ld a, $2		; Indicate that the system starts
+	ld a, 02h		; Indicate that the system starts
 	out (OUTPORT), a
 
 	; Do ram test
@@ -21,7 +21,7 @@ INIT:
 	jr nc, .ramtest_succ
 
 .ramtest_err:
-	ld a, $aa
+	ld a, 00aah
 	out (OUTPORT), a
 	halt
 	jr .ramtest_err
@@ -29,12 +29,12 @@ INIT:
 .ramtest_succ:
 .configure:
 
-	ld a, $3		; Indicate that the system starts
+	ld a, 3h		; Indicate that the system starts
 	out (OUTPORT), a
 
 	call VD_CONFIGURE
 
-	ld a, $4		; Indicate that the video has been initialized
+	ld a, 4h		; Indicate that the video has been initialized
 	out (OUTPORT), a
 
 	ld hl, MSG1
@@ -73,7 +73,7 @@ delay_loop:
 	pop bc
 	ret	
 
-	include "constants.s"
+	include "utils/constants.s"
 	include "utils/timing.s"
 	include "utils/ramtest.s"
 	include "utils/video_driver.s"
@@ -84,28 +84,30 @@ MESSAGES:
 	dw MSG2
 	dw MSG3
 	dw MSG4
-MSG1:	string "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
+MSG1:	db "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n", 0
 MSG1_LEN: equ $-MSG1
-MSG2:	string "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z\n"
+MSG2:	db "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z\n", 0
 MSG2_LEN: equ $-MSG2
-MSG3:	string "0 1 2 3 4 5 6 7 8 9 \n"
+MSG3:	db "0 1 2 3 4 5 6 7 8 9 \n", 0
 MSG3_LEN: equ $-MSG3
 MSG4:
-	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
-	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
-	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
-	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
 
-	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
-	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
-	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
-	data $b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1,$b1
-	data 0
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h,00b1h
+	db 0
 
 MSG4_LEN: equ $-MSG4
 
-	org $07fe
-	word $0000
+	org 07feh
+	dw 0000h
 	end
 
 

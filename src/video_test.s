@@ -1,19 +1,19 @@
-RAMBEG:	      equ  $8000	    ; Begin of RAM
-RAMEND:	      equ  $ffff	    ; End of RAM
-VRAMBEG:	  equ  $7000		; Begin VRAM
-VRAMEND:	  equ  $7fff		; End VRAM
-OUTPORT:	  equ  $00			; Parallel out port
-VADDRPORT:	  equ  $80			; Video Address port
-VDATAPORT:	  equ  $81			; Video Data port
+RAMBEG:	      equ  008000h	    ; Begin of RAM
+RAMEND:	      equ  00ffffh	    ; End of RAM
+VRAMBEG:	  equ  7000h		; Begin VRAM
+VRAMEND:	  equ  7fffh		; End VRAM
+OUTPORT:	  equ  00h			; Parallel out port
+VADDRPORT:	  equ  80h			; Video Address port
+VDATAPORT:	  equ  81h			; Video Data port
 
 init:				    
 	ld    SP, RAMEND	    ; Set Stack to end of memory
 	jp main
 	
-	org $0100
+	org 0100h
 	
 main:
-	ld a, $1		; Indicate that the test starts
+	ld a, 1h		; Indicate that the test starts
 	out (OUTPORT), a
 
 
@@ -23,14 +23,14 @@ main:
 	call RAMTST 
 
 	jr c, RAMERR	; If carry is set, jump to RAMERR
-	ld a, $2		; No error, indicate success
+	ld a, 2h		; No error, indicate success
 	out (OUTPORT), a
 	halt
 RAMERR:
 	; An error has happened. Loop through $ff, h, l, and a.
 	ld e, a 		; Save a 
 RAMERRLOOP:
-	ld a, $ff 		; Show $ff
+	ld a, 00ffh 		; Show $ff
 	out (OUTPORT), a 
 	call SLEEP
 	ld a, h 		; Show h
@@ -58,15 +58,15 @@ delay_loop:
 	djnz delay_loop
 	ret	
 
-	org $0700
+	org 0700h
 VIDEO_INIT_TBL:
 	db 100, 80, 82, 12
 	db 31, 12, 30, 31
 	db 0, 15
 
 
-	org $07fe
-	word $0000
+	org 07feh
+	dw 0000h
 
 
 
