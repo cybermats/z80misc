@@ -1,39 +1,42 @@
-ASM=vasmz80_oldstyle
-ASMFLAGS=-Fbin -esc -x -quiet -maxerrors=0
+ASM=asl
+ASMFLAGS=-cpu Z80
+BIN_GEN=p2bin
+BIN_FLAGS=-r \$$-\$$ +k
+DEP=./tools/asmdep.py
+MAKEDEPEND=$(DEP) $< $(DEP_DIR)/$*.d
+
 PROGRAMMER=minipro
 EEPROM=AT28C25
 #EEPROM=CAT28C16A
 
 SRC_DIR=./src
 BIN_DIR=./build
-DEP_DIR=./build/deps
-LST_DIR=./build
+PLS_DIR=$(BIN_DIR)/plist
+DEP_DIR=$(BIN_DIR)/deps
 
 vpath %.s $(SRC_DIR)
 
-SOURCES = $(wildcard $(SRC_DIR)/*.s)
-BINS = $(SOURCES:$(SRC_DIR)/%.s=$(BIN_DIR)/%.bin)
-DEPS = $(SOURCES:$(SRC_DIR)/%.s=$(DEP_DIR)/%.d)
-LSTS = $(SOURCES:$(SRC_DIR)/%.s=$(LST_DIR)/%.lst)
+SRC_FILES = $(wildcard $(SRC_DIR)/*.s)
+BIN_FILES = $(SRC_FILES:$(SRC_DIR)/%.s=$(BIN_DIR)/%.bin)
+PLS_FILES = $(SRC_FILES:$(SRC_DIR)/%.s=$(PLS_DIR)/%.p)
+DEP_FILES = $(SRC_FILES:$(SRC_DIR)/%.s=$(DEP_DIR)/%.d)
 
 dir_guard=@mkdir -p $(@D)
 
-all: $(BINS)
-	@echo "Building all..."
+all: $(BIN_FILES)
 
-include $(DEPS)
+what:
+	@echo $(DEP_FILES)
 
-
-$(DEP_DIR)/%.d: $(SRC_DIR)/%.s
+$(PLS_DIR)/%.p: $(SRC_DIR)/%.s
+$(PLS_DIR)/%.p: $(SRC_DIR)/%.s $(DEP_DIR)/%.d | $(DEP_DIR)
 	$(dir_guard)
-	@set -e; rm -f $@; \
-	$(ASM) $(ASMFLAGS) -dependall=make -quiet -o $(BIN_DIR)/$*.bin  $< > $@.$$$$; \
-	sed 's,\($*\)\.bin[ :]*,\1.bin $@ : ,g' < $@.$$$$ > $@; \
-	rm -f $@.$$$$
+	@$(MAKEDEPEND)
+	$(ASM) $(ASMFLAGS) -o $@ $<
 
-$(BIN_DIR)/%.bin: $(SRC_DIR)/%.s
+$(BIN_DIR)/%.bin: $(PLS_DIR)/%.p
 	$(dir_guard)
-	$(ASM) $(ASMFLAGS) -L $(LST_DIR)/$*.lst -o $@ $<
+	$(BIN_GEN) $< $@ $(BIN_FLAGS)
 
 #seg_test: seg_test.bin
 #	$(PROGRAMMER) -p $(EEPROM) -w seg_test.bin
@@ -41,4 +44,12 @@ $(BIN_DIR)/%.bin: $(SRC_DIR)/%.s
 .PHONY: clean help
 
 clean:
-	rm -f $(BINS) $(DEPS) $(LSTS)
+	rm -f $(BIN_FILES) $(DEP_FILES) $(PLS_FILES)
+	rmdir $(PLS_DIR)
+	rmdir $(DEP_DIR)
+
+$(DEP_DIR): ; @mkdir -p $@
+
+$(DEP_FILES):
+
+include $(wildcard $(DEP_FILES))
