@@ -1,7 +1,10 @@
 ASM=asl
-ASMFLAGS=-cpu Z80
+ASMFLAGS=-cpu Z80 -Werror
+
 BIN_GEN=p2bin
 BIN_FLAGS=-r \$$-\$$ -k
+DEFINES=-D POST
+
 DEP=./tools/asmdep.py
 MAKEDEPEND=$(DEP) -t $@ $< $(DEP_DIR)/$*.d
 
@@ -32,12 +35,15 @@ $(BIN_DIR)/%.bin: $(SRC_DIR)/%.s
 $(BIN_DIR)/%.bin: $(SRC_DIR)/%.s $(DEP_DIR)/%.d | $(DEP_DIR)
 	$(dir_guard)
 	@$(MAKEDEPEND)
-	$(ASM) $(ASMFLAGS) -o $(PLS_DIR)/$*.p $<
+	$(ASM) $(ASMFLAGS) $(DEFINES) -o $(PLS_DIR)/$*.p $< 
 	$(BIN_GEN) $(PLS_DIR)/$*.p $@ $(BIN_FLAGS)
 
 
 #seg_test: seg_test.bin
 #	$(PROGRAMMER) -p $(EEPROM) -w seg_test.bin
+
+bios:	$(BIN_DIR)/bios.bin
+	@echo "Building bios..."
 
 .PHONY: clean help
 
