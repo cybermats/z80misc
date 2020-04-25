@@ -75,9 +75,9 @@ SER_CONFIGURE:
 ; Entry:	None
 ; Exit:		If there are keys available:
 ; 		   Register A = value
-;		   Zero flag = 0
+;		   C flag = 0
 ;		else
-;		   Zero flag = 1
+;		   C flag = 1
 ;
 ; Registers used:      A
 ; ***********************************************************
