@@ -41,10 +41,9 @@ VD_CONFIGURE:
 	djnz .loop
 
 	; 4. Set all video variables in memory
-	ld hl, CURSOR_COL
-	ld (hl), 0
-	ld hl, CURSOR_ROW
-	ld (hl), 0
+	xor a
+	ld (CURSOR_COL), a
+	ld (CURSOR_ROW), a
 	call VD_UPDATE_CURSOR
 .done:
 	pop bc
@@ -86,8 +85,16 @@ VD_OUT:
 	pop de
 	ret
 
-.eol:
-	call VD_NEW_LINE
+.eol:				; New Line
+	xor a
+	ld (CURSOR_COL), a
+	ld a, (CURSOR_ROW)
+	inc a
+	cp VIDEO_ROWS
+	jp m, .row_done
+	sub a, VIDEO_ROWS
+.row_done:
+	ld (CURSOR_ROW), a	; Save CURSOR_ROW
 	ret
 
 .bspc:
