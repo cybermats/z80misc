@@ -275,38 +275,38 @@ KD_CONVERT:
 	ld hl, KB_PS2_COUNT	; Increase counter
 	inc (hl)
 
-	and 00e0h			; Test for longer sequences (two top bits)
+	and 00e0h		; Test for longer sequences (two top bits)
 	cp 00e0h
-	jr nz, .test_value	; Jump if this may be a character
+	jr nz, .test_pause_set	; Jump if this may be a character
 
 	ld a, e
-	cp 00f0h			; Test for Break
+	cp 00f0h		; Test for Break
 	jr nz, .test_extended	; Jump if this is not a Break
 
 	ld a, (KB_PS2_STATE)
 	or KD_STATE_BREAK	; Set Break flag
 	ld (KB_PS2_STATE), a
-	jr .done
+	jp .done
 
 .test_extended:
-	cp 00e0h			; Test for Extended
+	cp 00e0h		; Test for Extended
 	jr nz, .test_pause	; Jump if this is not a Extended
 
 	ld a, (KB_PS2_STATE)
 	or KD_STATE_EXTENDED	; Set Extended flag
 	ld (KB_PS2_STATE), a
-	jr .done
+	jp .done
 
 .test_pause:
 	cp 00e1h			; Test for Extended
-	jr nz, .reset_flags	; Jump if this is not a Extended
+	jp nz, .reset_flags	; Jump if this is not a Extended
 
 	ld a, (KB_PS2_STATE)
 	or KD_STATE_PAUSE	; Set Pause flag
 	ld (KB_PS2_STATE), a
-	jr .done
+	jp .done
 
-.test_value:
+.test_pause_set:
 	ld a, (KB_PS2_STATE)
 	ld d, a			; Store STATE
 	and KD_STATE_PAUSE	; Test Pause flag
@@ -314,10 +314,10 @@ KD_CONVERT:
 
 
 	ld a, (KB_PS2_COUNT)
-	and 8h			; Check if we're at the end of the pause seq
-	jr nz, .reset_flags	; Reset flags and count
+	and 8h			; Check if we're at the end 3of the pause seq
+	jp nz, .reset_flags	; Reset flags and count
 
-	jr .done		; We're not in the end, just continue
+	jp .done		; We're not in the end, just continue
 
 .test_break_set:
 	ld a, d
@@ -325,35 +325,152 @@ KD_CONVERT:
 	jr z, .test_ext_set
 	
 	ld a, e
-	cp 7ch
-	jr nz, .reset_flags
+	cp 7ch			; Test for Prt Scr
+	jp z, .done		; Is Prt Scr, we're done
 
-	jr .done
+	      			; Check if it's a meta key that
+				; has been broken
+				; which can be Left (not extended) or
+				; Right (extended) Alt/Shift/Ctrl
+
+	ld a, d			; Check for Right (extended)
+	and KD_STATE_EXTENDED
+	jr nz, .test_meta_ext	; It's extended
+	
+	ld a, e			; It's not extended
+	cp 11h			; Alt
+	jr z, .clear_alt
+	cp 12h			; Shift (Left)
+	jr z, .clear_shift
+	cp 14h			; Ctrl
+	jr z, .clear_ctrl
+	cp 59h
+	jr z, .clear_shift	; Shift (Right)
+
+	jp .reset_flags		; It's not a meta key, ignore this break
+
+
+.test_meta_ext:
+	ld a, e			; It's extended
+	cp 11h			; Alt
+	jr z, .clear_alt
+	cp 14h			; Ctrl
+	jr z, .clear_ctrl
+
+	jp .reset_flags		; It's not a meta key, ignore this break
+
+.clear_alt:
+	ld a, d
+	and ~KD_STATE_ALT
+	ld (KB_PS2_STATE), a
+	ld d, a
+	jp .reset_flags
+.clear_shift:
+	ld a, d
+	and ~KD_STATE_SHIFT
+	ld (KB_PS2_STATE), a
+	ld d, a
+	jr .reset_flags
+.clear_ctrl:
+	ld a, d
+	and ~KD_STATE_CTRL
+	ld (KB_PS2_STATE), a
+	ld d, a
+	jr .reset_flags
+
+
 
 .test_ext_set:
-	ld a, d
+	ld a, d			; Check if this char is extended.
 	and KD_STATE_EXTENDED
-	jr z, .lookup
+	jr z, .lookup		; It's not, go to lookup.
 
 	ld a, e
 	cp 12h
-	jr nz, .reset_flags
-	
-	jr .done
+	jr z, .done		; It's Ptr Scr. We're done.
 
+	      			; Check if the extended char
+				; is a meta char. If that's the case
+				; we need to set the right meta key.
+				
+	cp 11h			; Alt
+	jr z, .set_alt
+	cp 14h			; Ctrl
+	jr z, .set_ctrl
+
+	jr .reset_flags		; It's not a meta char. Ignore
+
+	
 .lookup:
 	ld a, e
-	cp 5fh
-	jp p, .reset_flags
+	cp 5fh			; Check if the value is too high
+	   			; to be an actual char.
+	jp p, .reset_flags	; It is, abort.
 
-	ld d, 0
+	ld d, 0			; It's not. Check in lookup table.
 	ld hl, KD_SCANCODES
 	add hl, de
+	
+	ld a, (KB_PS2_STATE)
+	ld d, a			; Store STATE again
 
 	ld a, (hl)
 	or a
-	jr z, .reset_flags
+	jr nz, .adjust_char	; It's a char
+	       			
+	ld a, e			; It's not a char, check for meta
+	cp 11h			; Alt
+	jr z, .set_alt
+	cp 12h			; Shift (Left)
+	jr z, .set_shift
+	cp 14h			; Ctrl
+	jr z, .set_ctrl
+	cp 59h
+	jr z, .set_shift	; Shift (Right)
+
+	jr .reset_flags		; It's not a char and not meta.
+
+	
+.set_alt:
+	ld a, d
+	or KD_STATE_ALT
+	ld (KB_PS2_STATE), a
+	ld d, a
+	jr .reset_flags
+.set_shift:
+	ld a, d
+	or KD_STATE_SHIFT
+	ld (KB_PS2_STATE), a
+	ld d, a
+	jr .reset_flags
+.set_ctrl:
+	ld a, d
+	or KD_STATE_CTRL
+	ld (KB_PS2_STATE), a
+	ld d, a
+	jr .reset_flags
+
+
+.adjust_char:
+	ld e, a			; Store ASCII
+	and KD_STATE_CTRL	; Check if Ctrl is pressed
+	jr z, .no_meta
+	
+	ld a, e
+	cp '['
+	jp m, .no_meta		; Outside Ctrl range
+	cp 'z'
+	jp p, .no_meta
+
+	and 1fh			; Make Ctrl char
+	or a			; Reset Carry
 	jr .all_done
+
+.no_meta:
+	ld a, e			; Reload ascii
+	or a
+	jr .all_done
+	
 
 .reset_flags:
 	xor a
@@ -371,14 +488,14 @@ KD_SCANCODES:	; Scan Code set 2
 
 	db 0, 0, 0, 0, 0, 0, 0, 0
 	db 0, 0, 0, 0, 0, 0, '`', 0
-	db 0, 0, 0, 0, 0, 'Q', '1', 0
-	db 0, 0, 'Z', 'S', 'A', 'W', '2', 0
-	db 0, 'C', 'X', 'D', 'E', '4', '3', 0
-	db 0, ' ', 'V', 'F', 'T', 'R', '5', 0
-	db 0, 'N', 'B', 'H', 'G', 'Y', '6', 0
-	db 0, 0, 'M', 'J', 'U', '7', '8', 0
-	db 0, ',', 'K', 'I', 'O', '0', '9', 0
-	db 0, '.', '/', 'L', ';', 'P', '-', 0
+	db 0, 0, 0, 0, 0, 'q', '1', 0
+	db 0, 0, 'z', 's', 'a', 'w', '2', 0
+	db 0, 'c', 'x', 'd', 'e', '4', '3', 0
+	db 0, ' ', 'v', 'f', 't', 'r', '5', 0
+	db 0, 'n', 'b', 'h', 'g', 'y', '6', 0
+	db 0, 0, 'm', 'j', 'u', '7', '8', 0
+	db 0, ',', 'k', 'i', 'o', '0', '9', 0
+	db 0, '.', '/', 'l', ';', 'p', '-', 0
 	db 0, 0, 0, 0, '[', '=', 0, 0
 	db 0, 0, '\n', ']', 0, '\\', 0, 0
 
