@@ -674,7 +674,7 @@ INPERR:	ld hl, (STKINP)	; *** INPERR ***
 	pop de		; and old text pointer
 	pop de		; redo input
 
-INPUT:	ds 0
+INPUT:	;ds 0
 IP1:	push de		; Save in case of error
 	call QTSTG	; Is next item a string?
 	jr IP8		; No
@@ -721,7 +721,7 @@ IP12:	pop bc		; Return address
 DEFLT:	ld a, (de)	; *** DEFLT ***
 	cp '\n'		; Empty line is ok
 	jr z, LT4	; Else it is "LET"
-LET:	ds 0  		; *** LET ***
+LET:	;ds 0  		; *** LET ***
 LT2:	call SETVAL
 LT3:	TSTC ',',LT4	; Set value to var.
 	jr LET		; Item by item
