@@ -19,9 +19,22 @@
 KD_CONFIGURE:
 	push de
 	ld e, a		; Save for later
+
+	; Initialize the keyboard input buffer
+	push hl
+	ld hl, KB_BUFFER_BEG
+	ld (KB_START_PTR), hl
+	ld (KB_END_PTR), hl
+	xor a
+	ld (KB_PS2_STATE), a
+	ld (KB_PS2_COUNT), a
+	pop hl
+
 	; Channel reset
 	ld a, SIO_WR0_REG0 | SIO_WR0_CMD_CHNL_RST
-	out (SIOCMDB), a
+	out (SIOCMDA), a
+	nop
+	nop
 	; Pointer 2 
 	ld a, SIO_WR0_REG2
 	out (SIOCMDB), a
@@ -30,25 +43,25 @@ KD_CONFIGURE:
 	out (SIOCMDB), a
 	; Ptr 4. Reset Ext/Status interrupts
 	ld a, SIO_WR0_REG4 | SIO_WR0_CMD_RST_EXT_STS_INTS
-	out (SIOCMDB), a
+	out (SIOCMDA), a
 	; x1 Clock mode, Async,1 stop bit, odd partity
 	ld a, SIO_WR4_CLK_X1 | SIO_WR4_STP_1 | SIO_WR4_PRT_ODD | SIO_WR4_PRT_EN
-	out (SIOCMDB), a
+	out (SIOCMDA), a
 	; Pointer 3
 	ld a, SIO_WR0_REG3
-	out (SIOCMDB), a
+	out (SIOCMDA), a
 	; Rx 8 bits, no auto enable, Rx enable
 	ld a, SIO_WR3_RX_8BITS | SIO_WR3_RX_EN
-	out (SIOCMDB), a
+	out (SIOCMDA), a
 	; Pointer 5
 	ld a, SIO_WR0_REG5
-	out (SIOCMDB), a
+	out (SIOCMDA), a
 	; 8 bits, Tx not enabled
 	ld a, SIO_WR5_TX_8BITS
-	out (SIOCMDB), a
+	out (SIOCMDA), a
 	; Pointer 1, Reset Ext/Status ints
 	ld a, SIO_WR0_REG1 | SIO_WR0_CMD_RST_EXT_STS_INTS
-	out (SIOCMDB), a
+	out (SIOCMDA), a
 	; Receive interrupts On First Char only
 	ld a, e
 	or a	; Check if interrupt vector has been given
@@ -57,15 +70,11 @@ KD_CONFIGURE:
 	jr z, .no_ints ; Jump if no vector is specified
 	ld a, SIO_WR1_RX_INT_FIRST	; Turn on ints
 .no_ints
-	out (SIOCMDB), a
+	out (SIOCMDA), a
 
-	; Initialize the keyboard input buffer
-	ld hl, KB_BUFFER_BEG
-	ld (KB_START_PTR), hl
-	ld (KB_END_PTR), hl
 	xor a
-	ld (KB_PS2_STATE), a
-	ld (KB_PS2_COUNT), a
+	out (SIODATAA), a
+
 	pop de
 	ret
 
@@ -77,18 +86,22 @@ KD_CONFIGURE:
 ; 		and stores it in a circular buffer.
 ; Entry:	None
 ; Exit:		None
-; Registers used:      A, HL
+; Registers used:	None
 ; ***********************************************************
 KD_CALLBACK:
-	in a, (SIODATAB)	; Fetch value from SIO
+	push af
+	in a, (SIODATAA)	; Fetch value from SIO
 	call KD_CONVERT		; Convert A to ASCII
 	jr c, .done		; This is not a key press we care about
 	
 	call KD_BUFFER_KEY	; Store ASCII in key buffer.
-
 .done
-	ld a, 00010000b		; Pointer 0, Reset Ext/Status interrupts
-	out (SIOCMDB), a	; Restore interrupts
+	ld a, SIO_WR0_CMD_EN_INT_NXT_RX_CHR
+	out (SIOCMDA), a
+	ld a, SIO_WR0_CMD_RTN_FRM_INT
+	out (SIOCMDA), a
+
+	pop af
 	ret
 
 ; ***********************************************************
@@ -190,11 +203,11 @@ KD_NEXT_KVAL:
 ; ***********************************************************
 KD_POLL:
 	ld a, SIO_WR0_REG0	; Load status of keyboard
-	out (SIOCMDB), a
-	in a, (SIOCMDB)
+	out (SIOCMDA), a
+	in a, (SIOCMDA)
 	and SIO_RD0_DATA_AV	; Check if data is available
 	jr z, .done		; Jump if there is no data
-	in a, (SIODATAB)	; Read data
+	in a, (SIODATAA)	; Read data
 	call KD_CONVERT		; Convert to ASCII
 	jr c, .done		; Jump if irrelevant key
 	call KD_BUFFER_KEY	; Store keys in buffer
@@ -217,12 +230,15 @@ KD_POLL:
 ; ***********************************************************
 KD_POLL_CHAR:
 	ld a, SIO_WR0_REG0	; Load status of keyboard
-	out (SIOCMDB), a
-	in a, (SIOCMDB)
+	out (SIOCMDA), a
+	in a, (SIOCMDA)
 	and SIO_RD0_DATA_AV	; Check if data is available
-	ret z
-	in a, (SIODATAB)	; Read data
+	jr z, .done
+	in a, (SIODATAA)	; Read data
 	call KD_CONVERT
+	ret
+.done:
+	scf
 	ret
 
 
@@ -242,12 +258,12 @@ KD_POLL_CHAR:
 ; ***********************************************************
 KD_POLL_CODE:
 	ld a, SIO_WR0_REG0	; Load status of keyboard
-	out (SIOCMDB), a
-	in a, (SIOCMDB)
+	out (SIOCMDA), a
+	in a, (SIOCMDA)
 	and SIO_RD0_DATA_AV	; Check if data is available
 	jr z, .done		; Jump if there is no data
 	and a
-	in a, (SIODATAB)	; Read data
+	in a, (SIODATAA)	; Read data
 	ret
 .done:
 	scf
@@ -403,7 +419,7 @@ KD_CONVERT:
 	
 .lookup:
 	ld a, e
-	cp 5fh			; Check if the value is too high
+	cp KD_SCANCODES_LEN	; Check if the value is too high
 	   			; to be an actual char.
 	jp p, .reset_flags	; It is, abort.
 
@@ -452,6 +468,7 @@ KD_CONVERT:
 
 
 .adjust_char:
+	jr .all_done
 	ld e, a			; Store ASCII
 	and KD_STATE_CTRL	; Check if Ctrl is pressed
 	jr z, .no_meta
@@ -486,18 +503,19 @@ KD_CONVERT:
 KD_SCANCODES:	; Scan Code set 2
 
 
-	db 0, 0, 0, 0, 0, 0, 0, 0
-	db 0, 0, 0, 0, 0, 0, '`', 0
-	db 0, 0, 0, 0, 0, 'q', '1', 0
-	db 0, 0, 'z', 's', 'a', 'w', '2', 0
-	db 0, 'c', 'x', 'd', 'e', '4', '3', 0
-	db 0, ' ', 'v', 'f', 't', 'r', '5', 0
-	db 0, 'n', 'b', 'h', 'g', 'y', '6', 0
-	db 0, 0, 'm', 'j', 'u', '7', '8', 0
-	db 0, ',', 'k', 'i', 'o', '0', '9', 0
-	db 0, '.', '/', 'l', ';', 'p', '-', 0
-	db 0, 0, 0, 0, '[', '=', 0, 0
-	db 0, 0, '\n', ']', 0, '\\', 0, 0
+	db 0, 0, 0, 0, 0, 0, 0, 0		; 00h
+	db 0, 0, 0, 0, 0, 0, '`', 0		; 08h
+	db 0, 0, 0, 0, 0, 'q', '1', 0		; 10h
+	db 0, 0, 'z', 's', 'a', 'w', '2', 0	; 18h
+	db 0, 'c', 'x', 'd', 'e', '4', '3', 0	; 20h
+	db 0, ' ', 'v', 'f', 't', 'r', '5', 0	; 28h
+	db 0, 'n', 'b', 'h', 'g', 'y', '6', 0	; 30h
+	db 0, 0, 'm', 'j', 'u', '7', '8', 0 	; 38h
+	db 0, ',', 'k', 'i', 'o', '0', '9', 0	; 40h
+	db 0, '.', '/', 'l', ';', 'p', '-', 0	; 48h
+	db 0, 0, 0, 0, '[', '=', 0, 0  	    	; 50h
+	db 0, 0, '\n', ']', 0, '\\', 0, 0	; 58h
+;	db 0, 0, 0, 0, 0, 0, 08h, 0  		; 60h
 
 KD_SCANCODES_LEN:    equ $ - KD_SCANCODES
 

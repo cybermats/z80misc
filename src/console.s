@@ -5,38 +5,10 @@ RESET:
 	ld a, 1h
 	out (OUTPORT), a
 	ld SP, STACK_START		; Set Stack to end of memory
-	ld a, 00h			; Set up interrupt page
+	ld a, 07h			; Set up interrupt page
 	ld i, a				; 
 	im 2				; Set interrupt mode 2
-	ei 				; Enable interrupt
 	jp INIT
-
-; Keyboard interrupt received
-  	org 0038h
-KEYBOARD_INT:
-	push af
-	in a, (SIODATAB)
-	out (OUTPORT), a
-	ld a, 00010000b
-	out (SIOCMDB), a
-	ld a, 00110000b
-	out (SIOCMDB), a
-
-	call KD_CALLBACK
-	pop af
-	ei
-	reti
-
-; Non-maskable interrupt received
-  	org 0066h
-NMI:
-	ld a, 0fh			; Indicate that an NMI has been received.
-	out (OUTPORT), a
-	ld a, 250
-	call DELAY
-	retn
-
-
 
 
 ; ********************************************
@@ -46,7 +18,6 @@ NMI:
 ; ********************************************
 
 
-	org 0100h
 INIT:
 	; Prepare system
 	ld a, 2h			; Indicate that the system starts
@@ -83,7 +54,9 @@ INIT:
 	ld bc, MSG_KB1_LEN
 	call VD_OUTN
 
-	ld a, 0			; Set no int vector and disable ints
+	;ld a, 0			; Set no int vector and disable ints
+	;ld a, KEYBOARD_INT		; Set int vector
+	ld a, INT_KEYBOARD_IDX
 	call KD_CONFIGURE
 
 	ld a, 5h		; Indicate that the keyboard has been configured
@@ -97,35 +70,25 @@ INIT:
 	ld bc, MSG_DONE_LEN
 	call VD_OUTN
 
-	ld a, 250
-	call DELAY
+	ei
 
 MAIN:
-	if 0
-	call KD_POLL_CODE
+	halt
+	call KD_NEXT_KVAL
 	jr c, MAIN
-
-	ld hl, 8200h
-	ld bc, 8
-	call ITOA
-
-	ld hl, 8200h
-	ld bc, 8
-	call VD_OUTN
-
-	ld a, ' '
 	call VD_OUT
-
-	jr MAIN
-	endif
-
-	call KD_POLL
 	
-	call KD_NEXT_KVAL	; Get next character
-	jr c, MAIN		; Jump if no chars available
-
-	call VD_OUT		; Output next char
 	jr MAIN			; Loop back
+
+
+
+; Keyboard interrupt received
+KEYBOARD_INT:
+	call KD_CALLBACK
+	ei
+	reti
+
+
 
 
 	include "utils/constants.s"
@@ -140,6 +103,15 @@ MESSAGES:
 	msg MSG_KB1, "Keyboard initializing...\n"
 	msg MSG_KB2, "Keyboard initialized.\n"
 	msg MSG_DONE, "System started\n"
+
+
+
+
+	org 0700h
+INT_TABLE:			; Interrupt table
+	dw RESET		; Reset
+INT_KEYBOARD_IDX:		equ ($-INT_TABLE)
+	dw KEYBOARD_INT
 
 	org 07feh
 	dw 0000h
