@@ -41,16 +41,20 @@ CURSOR_ROW:	equ	00ff01h
 VIDEO_STATUS:	equ	00ff02h
 
 KB_START_PTR:	equ	00ff04h
-KB_END_PTR:	equ	00ff05h
-KB_PS2_STATE:	equ	00ff06h
-KB_PS2_COUNT:	equ	00ff07h
-KB_BUFFER_BEG:	equ	00ff08h
-KB_BUFFER_END:	equ	00ff10h	; End of buffer, exclusive
+KB_END_PTR:	equ	00ff06h
+;KB_START_PTR:	equ	007920h
+;KB_END_PTR:	equ	007922h
+KB_PS2_STATE:	equ	00ff08h
+KB_PS2_COUNT:	equ	00ff09h
+KB_BUFFER_BEG:	equ	00ff0ah
+KB_BUFFER_END:	equ	00ff12h	; End of buffer, exclusive
+;KB_BUFFER_BEG:	equ	007910h
+;KB_BUFFER_END:	equ	007920h	; End of buffer, exclusive
 
-SR_BUFFER_BEG:	equ	00ff10h
-SR_BUFFER_END:	equ	00ff20h	; End of buffer, exclusive
-SR_START_PTR:	equ	00ff20h
-SR_END_PTR:	equ	00ff21h
+SR_BUFFER_BEG:	equ	00ff12h
+SR_BUFFER_END:	equ	00ff1ah	; End of buffer, exclusive
+SR_START_PTR:	equ	00ff1ah
+SR_END_PTR:	equ	00ff1ch
 
 
 
