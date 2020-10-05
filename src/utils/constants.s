@@ -46,6 +46,8 @@ KB_END_PTR:	equ	00ff06h
 ;KB_END_PTR:	equ	007922h
 KB_PS2_STATE:	equ	00ff08h
 KB_PS2_COUNT:	equ	00ff09h
+;KB_PS2_STATE:	equ	007910h
+;KB_PS2_COUNT:	equ	007912h
 KB_BUFFER_BEG:	equ	00ff0ah
 KB_BUFFER_END:	equ	00ff12h	; End of buffer, exclusive
 ;KB_BUFFER_BEG:	equ	007910h

@@ -63,7 +63,7 @@ VD_CONFIGURE:
 ; Registers used:	 A
 ; ***********************************************************
 VD_OUT:
-	cp '\n'			; Check for newline
+	cp 0ah			; Check for newline
 	jr z, .eol
 	cp 08h			; Check backspace
 	jr z, .bspc
@@ -95,6 +95,7 @@ VD_OUT:
 	sub a, VIDEO_ROWS
 .row_done:
 	ld (CURSOR_ROW), a	; Save CURSOR_ROW
+	call VD_UPDATE_CURSOR
 	ret
 
 .bspc:
