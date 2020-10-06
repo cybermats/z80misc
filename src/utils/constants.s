@@ -26,15 +26,15 @@ SIOCMDB:  	equ	00f3h
 
 
 ; Memory Locations
-VARBEG:		equ	00fd00h
-STACK_START:	equ	00fe00h	; This gives $100 bytes for variables
+STACK_START:	equ	00fe00h	
+VARBEG:		equ	00fe00h ; This gives $200 bytes for variables
 
 ;DVLST:		equ	00fe00h	; Device list has $100 bytes,
 				; each taking 17 bytes, i.e. 10 devices
 ;DVTE:		equ	00fe02h	; Device Table Entry memory pool
 
-IBUFFER:	equ	00fe00h
-IBUFEND:	equ	00feffh
+IBUFFER:	equ	00fe00h ; Input buffer
+IBUFEND:	equ	00ff00h ; End of buffer, exclusive
 
 CURSOR_COL:	equ	00ff00h
 CURSOR_ROW:	equ	00ff01h
@@ -57,9 +57,6 @@ SR_BUFFER_BEG:	equ	00ff12h
 SR_BUFFER_END:	equ	00ff1ah	; End of buffer, exclusive
 SR_START_PTR:	equ	00ff1ah
 SR_END_PTR:	equ	00ff1ch
-
-
-
 
 ; Devices
 VIDEO_DVC:	equ	01h

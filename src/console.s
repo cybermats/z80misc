@@ -1,3 +1,4 @@
+	CPU z80
 	include "utils/macro.s"
 
 RESET:
@@ -50,21 +51,12 @@ INIT:
 	ld bc, MSG_INIT_LEN
 	call VD_OUTN
 
-	ld hl, MSG_KB1
-	ld bc, MSG_KB1_LEN
-	call VD_OUTN
-
-	;ld a, 0			; Set no int vector and disable ints
-	;ld a, KEYBOARD_INT		; Set int vector
 	ld a, INT_KEYBOARD_IDX
 	call KD_CONFIGURE
 
-	ld a, 5h		; Indicate that the keyboard has been configured
+.tell:
+	ld a, 5h		; Indicate that the system is ok
 	out (OUTPORT), a
-
-	ld hl, MSG_KB2
-	ld bc, MSG_KB2_LEN
-	call VD_OUTN
 
 	ld hl, MSG_DONE
 	ld bc, MSG_DONE_LEN
@@ -99,10 +91,8 @@ KEYBOARD_INT:
 	include "utils/strings.s"
 
 MESSAGES:
-	msg MSG_INIT, "Video initialized.\n"
-	msg MSG_KB1, "Keyboard initializing...\n"
-	msg MSG_KB2, "Keyboard initialized.\n"
-	msg MSG_DONE, "System started\n"
+	msg MSG_INIT, "Init..."
+	msg MSG_DONE, "Ok\n"
 
 
 
@@ -115,4 +105,6 @@ INT_KEYBOARD_IDX:		equ ($-INT_TABLE)
 
 	org 07feh
 	dw 0000h
+
 	end
+
