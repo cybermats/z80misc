@@ -1,0 +1,9 @@
+* Add serial support
+* Add support for serial ints
+* Fix bug with backspace in SHELL
+* Add back full scan codes for keyboard into RAM
+* Move code to be called from rst
+* build SD card reader
+* add support for FAT12
+* rebuild console.s into bios.s that loads from SD card
+* rebuild console.s into console app that is loaded from SD
