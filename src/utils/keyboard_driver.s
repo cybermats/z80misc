@@ -88,7 +88,6 @@ KD_CONFIGURE:
 KD_CALLBACK:
 	push af
 	in a, (SIODATAA)	; Fetch value from SIO
-	out (OUTPORT), a
 	call KD_CONVERT		; Convert A to ASCII
 	jr c, .done		; This is not a key press we care about
 	
@@ -142,18 +141,19 @@ KD_BUFFER_KEY:
 ; Name: 	KD_NEXT_KVAL
 ; Purpose:	Returns the next value from the circular
 ; 		buffer used to store keys from the keyboard.
-; Entry:	None
-; Exit:		If there are keys waiting to be processed:
-; 		   Register A = value
-;		   Carry flag = 0
-;		else
-;		   Carry flag = 1
 ;
-; Registers used:      A, HL
+;		Blocks if no values are present.
+;
+; Entry:	None
+; Exit:		Register A = value
+;
+; Registers used:      A
 ; ***********************************************************
 KD_NEXT_KVAL:
 	push bc
 	push de
+	push hl
+.loop
 	ld de, (KB_START_PTR)	; Get end pointer addr
 	ld hl, (KB_END_PTR)	; Get start pointer addr
 
@@ -165,8 +165,8 @@ KD_NEXT_KVAL:
 	and a			; Clear Carry for SBC
 	sbc hl, de		; Compare the values
 	jr nz, .input_available	; Jump if the values are different
-	scf    			; Not different, so set error flag
-	jr .done
+	halt   			; Not different, halt until there is
+	jr .loop
 
 .input_available:
 	ld a, (de)		; We have values, so load the oldest value
@@ -181,90 +181,12 @@ KD_NEXT_KVAL:
 	ld de, KB_BUFFER_BEG	; It is at the end, so wrap around
 
 .update_ptr:
-	and a			; Clear carry
 	ld (KB_START_PTR), de	; Update the start pointer
 .done:
 	ld a, c
+	pop hl
 	pop de
 	pop bc
-	ret
-
-; ***********************************************************
-; Title:	Poll the keyboard
-; Name: 	KD_POLL
-; Purpose:	Checks if there are any thing inbound from
-; 		the keyboard, and if there is it returns it.
-; Entry:	None
-; Exit:		Key, if present, is buffered.
-;
-; Registers used:      A
-; ***********************************************************
-KD_POLL:
-	ld a, SIO_WR0_REG0	; Load status of keyboard
-	out (SIOCMDA), a
-	in a, (SIOCMDA)
-	and SIO_RD0_DATA_AV	; Check if data is available
-	jr z, .done		; Jump if there is no data
-	in a, (SIODATAA)	; Read data
-	call KD_CONVERT		; Convert to ASCII
-	jr c, .done		; Jump if irrelevant key
-	call KD_BUFFER_KEY	; Store keys in buffer
-.done:
-	ret
-
-; ***********************************************************
-; Title:	Poll the keyboard ASCII char
-; Name: 	KD_POLL_CHAR
-; Purpose:	Checks if there are any thing inbound from
-; 		the keyboard, and if there is it returns it.
-; Entry:	None
-; Exit:		If there are keys available:
-; 		   Register A = value
-;		   Carry flag = 0
-;		else
-;		   Carry flag = 1
-;
-; Registers used:      A
-; ***********************************************************
-KD_POLL_CHAR:
-	ld a, SIO_WR0_REG0	; Load status of keyboard
-	out (SIOCMDA), a
-	in a, (SIOCMDA)
-	and SIO_RD0_DATA_AV	; Check if data is available
-	jr z, .done
-	in a, (SIODATAA)	; Read data
-	call KD_CONVERT
-	ret
-.done:
-	scf
-	ret
-
-
-; ***********************************************************
-; Title:	Poll the keyboard scan code
-; Name: 	KD_POLL_CODE
-; Purpose:	Checks if there are any thing inbound from
-; 		the keyboard, and if there is it returns it.
-; Entry:	None
-; Exit:		If there are keys available:
-; 		   Register A = value
-;		   Carry flag = 0
-;		else
-;		   Carry flag = 1
-;
-; Registers used:      A
-; ***********************************************************
-KD_POLL_CODE:
-	ld a, SIO_WR0_REG0	; Load status of keyboard
-	out (SIOCMDA), a
-	in a, (SIOCMDA)
-	and SIO_RD0_DATA_AV	; Check if data is available
-	jr z, .done		; Jump if there is no data
-	and a
-	in a, (SIODATAA)	; Read data
-	ret
-.done:
-	scf
 	ret
 
 ; ***********************************************************
