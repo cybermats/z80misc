@@ -63,6 +63,7 @@ VD_CONFIGURE:
 ; Registers used:	 A
 ; ***********************************************************
 VD_OUT:
+	push af
 	cp 0ah			; Check for newline
 	jr z, .eol
 	cp 08h			; Check backspace
@@ -83,6 +84,7 @@ VD_OUT:
 	pop hl
 	pop bc
 	pop de
+	pop af
 	ret
 
 .eol:				; New Line
@@ -96,6 +98,7 @@ VD_OUT:
 .row_done:
 	ld (CURSOR_ROW), a	; Save CURSOR_ROW
 	call VD_UPDATE_CURSOR
+	pop af
 	ret
 
 .bspc:
@@ -116,6 +119,7 @@ VD_OUT:
 	pop hl
 	pop bc
 	pop de
+	pop af
 	ret
 
 
