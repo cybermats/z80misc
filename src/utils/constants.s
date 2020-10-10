@@ -24,6 +24,11 @@ SIOCMDA:  	equ	00f2h
 SIOCMDB:  	equ	00f3h
 
 
+RS:		equ 	01eh	; Record Separator
+US: 		equ 	01fh	; Unit Separator
+BACKSPC:	equ	08h	; Back-space
+EOF:		equ	1ah	; End Of File
+NUL:		equ	00h	; Null
 
 ; Memory Locations
 STACK_START:	equ	00fe00h	
@@ -35,6 +40,8 @@ VARBEG:		equ	00fe00h ; This gives $200 bytes for variables
 
 IBUFFER:	equ	00fe00h ; Input buffer
 IBUFEND:	equ	00ff00h ; End of buffer, exclusive
+;IBUFFER:	equ	007900h ; Input buffer
+;IBUFEND:	equ	007a00h ; End of buffer, exclusive
 
 CURSOR_COL:	equ	00ff00h
 CURSOR_ROW:	equ	00ff01h

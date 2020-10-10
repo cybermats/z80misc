@@ -1,43 +1,21 @@
-RS:	equ 01eh	; Record Separator
-US: 	equ 01fh	; Unit Separator
-FOO:	equ IBUFEND - IBUFFER - 1
 
 SHELL:
-	ld a, 10h
-	out (OUTPORT), a
-	
 	ld hl, SH_PMT
 	ld bc, SH_PMT_LEN
 	call VD_OUTN		; Print prompt
 
-	ld a, 20h
-	out (OUTPORT), a
-	
 	ld hl, IBUFFER
 	ld bc, IBUFEND - IBUFFER - 2 ; For an extra null terminator
 	call READ_LN		; Read line
 	jr z, SHELL		; Jump if no line has been read
 
-	ld a, 30h
-	out (OUTPORT), a
-
 	ld hl, IBUFFER
 	ld bc, IBUFEND - IBUFFER - 1
 	call TOKN_LN		; Tokenize line
 
-;	jr SHELL
-
-	ld a, 40h
-	out (OUTPORT), a
-
-;	ld hl, IBUFFER
-	ld de, IBUFFER
+	ld hl, IBUFFER
 	ld bc, IBUFEND - IBUFFER - 1
-;	call SH_EXEC		; Execute command
-	call ECHO
-
-	ld a, 50h
-	out (OUTPORT), a
+	call SH_EXEC		; Execute command
 
 	jr SHELL
 
@@ -47,7 +25,7 @@ SHELL:
 ; Name: 	READ_LN
 ; Purpose:	Reads a line from any input and stores it in
 ; 		the input buffer (IBUFFER) and adds
-;		a null terminators
+;		a null terminator
 ;
 ; Entry:	Register HL = Pointer to buffer
 ; 		Register BC = Size of buffer
@@ -63,9 +41,9 @@ READ_LN:
 	dec bc			; Make room for a null
 .loop:
 	call KD_NEXT_KVAL	; Get next key
-	cp 08h			; Check if back space
+	cp BACKSPC		; Check if back space
 	jr z, .back_space
-	cp 1ah			; Check if EOF
+	cp EOF			; Check if EOF
 	jr z, .return
 
 	call VD_OUT	
@@ -78,7 +56,7 @@ READ_LN:
 	dec bc
 	jr nz, .loop		; Loop if still space
 .return:
-	ld (hl), 0		; Add null terminator
+	ld (hl), NUL		; Add null terminator
 	
 	ld a, d
 	or e
@@ -155,14 +133,14 @@ TOKN_LN:
 	ld a, b			; Still room in buffer?
 	or c
 	ret z			; No, quit
-	ld (hl), 1eh		; Yes, insert Record Separator
+	ld (hl), RS		; Yes, insert Record Separator
 	dec bc	 		; Decrease space
 	inc hl
 .end2:
 	ld a, b			; Still room in buffer?
 	or c
 	ret z			; No, quit
-	ld (hl), 0		; Yes, insert final null
+	ld (hl), NUL		; Yes, insert final null
 	ret
 
 
@@ -177,14 +155,13 @@ TOKN_LN:
 ; 		Register BC = Length of string
 ; Exit:		None
 ;
-; Registers used:      A
+; Registers used:      A, DE
 ; ***********************************************************
 
 SH_EXEC:
-	ld d, h
-	ld e, l
+	ex de, hl
 	
-	call PARSE
+	call SH_PARSE
 	jr c, .exec_cmd
 	ld hl, SH_ERR
 	ld bc, SH_ERR_LEN
@@ -196,7 +173,7 @@ SH_EXEC:
 
 ; ***********************************************************
 ; Title:	Parses a string and finds if it maps to a command
-; Name: 	SH_EXEC
+; Name: 	SH_PARSE
 ; Purpose:	Searches through the command table to find
 ; 		a matching command.
 ;
@@ -209,7 +186,7 @@ SH_EXEC:
 ;
 ; Registers used:      A
 ; ***********************************************************
-PARSE:
+SH_PARSE:
 	ld hl, CMD_TABLE-1
 .exec:
 	push de
@@ -264,7 +241,7 @@ UCASE:
 
 ; ***********************************************************
 ; Title:	Echos all arguments
-; Name: 	SH_EXEC
+; Name: 	ECHO
 ; Purpose:	
 ;
 ; Entry:	Register DE = Pointer to string
@@ -274,13 +251,10 @@ UCASE:
 ; Registers used:      A, HL
 ; ***********************************************************
 ECHO:
-	ld a, 0ffh
-	out (OUTPORT), a
 	; Ignore first token
-
 	ex de, hl
 	ld a, RS
-	cpir		; Find first null pointer
+	cpir		; Find first delimiter
 	ret po
 	xor a
 	cp (hl)		; Check null pointer
@@ -304,23 +278,9 @@ ECHO:
 	jr .loop
 	
 .end:
-	ld a, 0f0h
-	out (OUTPORT), a
 	ld a, '\n'
 	call VD_OUT
 	ret
-
-.end1:
-	ld a, 0f1h
-	out (OUTPORT), a
-	halt
-	jr .end1
-
-.end2:
-	ld a, 0f2h
-	out (OUTPORT), a
-	halt
-	jr .end2
 
 
 CMD_TABLE:
