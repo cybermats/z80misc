@@ -66,7 +66,7 @@ VD_OUT:
 	push af
 	cp 0ah			; Check for newline
 	jr z, .eol
-	cp 08h			; Check backspace
+	cp BACKSPC		; Check backspace
 	jr z, .bspc
 	
 	push de

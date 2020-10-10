@@ -14,7 +14,7 @@ KD_SCANCODES:	; Scan Code set 2, no meta
 	db 0, '.', '/', 'l', ';', 'p', '-', 0	; 48h
 	db 0, 0, '\'', 0, '[', '=', 0, 0  	; 50h
 	db 0, 0, '\n', ']', 0, '\\', 0, 0	; 58h
-	db 0, 0, 0, 0, 0, 0, 08h, 0  		; 60h
+	db 0, 0, 0, 0, 0, 0, BACKSPC, 0		; 60h
 KD_SCANCODES_LEN:      	  equ ($ - KD_SCANCODES) + KD_SCANCODES_OFFSET
 
 KD_SCANCODES_SHIFT:	; Scan Code set 2, shift

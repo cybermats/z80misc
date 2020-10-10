@@ -1,7 +1,56 @@
 
+
+CMD_TABLE:
+	db "ECHO", US
+	dw ECHO
+	db "DUMP", US
+	dw PRINTMEM_ARG
+	db "RUN", US
+	dw RUN_ARG
+	db 0
+
+	msg MSG_PMT,	"> "
+	msg MSG_ERR, 	"Error\n"
+	msg MSG_HOW, 	"How?\n"
+	msg MSG_WHAT, 	"What?\n"
+
+SH_ERR:
+	ld hl, MSG_ERR
+	ld bc, MSG_ERR_LEN
+	call VD_OUTN
+	ret
+
+SH_HOW:
+	ld hl, MSG_HOW
+	ld bc, MSG_HOW_LEN
+	call VD_OUTN
+	ret
+	
+SH_WHAT:
+	ld hl, MSG_WHAT
+	ld bc, MSG_WHAT_LEN
+	call VD_OUTN
+	ret
+
+; ***********************************************************
+; Title:	A simple shell
+; Name: 	SHELL
+; Purpose:	Shell that provides
+; 		 * Prompt
+;		 * Parser
+;		 * Command Table
+;		It parses the input and starts a matching
+; 		command if found.
+;
+; Entry:	None
+; 		
+; Exit:		Never exits
+;
+; Registers used:      A, HL, BC
+; ***********************************************************
 SHELL:
-	ld hl, SH_PMT
-	ld bc, SH_PMT_LEN
+	ld hl, MSG_PMT
+	ld bc, MSG_PMT_LEN
 	call VD_OUTN		; Print prompt
 
 	ld hl, IBUFFER
@@ -163,11 +212,14 @@ SH_EXEC:
 	
 	call SH_PARSE
 	jr c, .exec_cmd
-	ld hl, SH_ERR
-	ld bc, SH_ERR_LEN
-	call VD_OUTN		; Print prompt
+	call SH_WHAT
 	ret
 .exec_cmd
+	ex de, hl
+	ld a, RS
+	cpir
+	ret po
+	ex de, hl
 	jp (hl)
 	
 
@@ -240,54 +292,113 @@ UCASE:
 
 
 ; ***********************************************************
-; Title:	Echos all arguments
-; Name: 	ECHO
-; Purpose:	
+; Title:	Read text number from input string
+; Name: 	READNUM
+; Purpose:	Reads a number in hex representation from an ASCII string
+; Entry:	Register HL - Base address of string containing number
+; Exit:		Register DE - Containing the number
+; 		Register HL - Pointing to next char
+;		If successful
+;		   Carry = Reset
+;		else
+;		   Carry = Set
 ;
-; Entry:	Register DE = Pointer to string
-; 		Register BC = Size of string
-; Exit:		None
-;
-; Registers used:      A, HL
+; Registers used:      DE, HL
 ; ***********************************************************
-ECHO:
-	; Ignore first token
-	ex de, hl
-	ld a, RS
-	cpir		; Find first delimiter
-	ret po
-	xor a
-	cp (hl)		; Check null pointer
-	ret z		; Yes, exit
-
-.loop:
+READNUM:
+	ld de, 0
 	ld a, (hl)
-	cp RS
-	jr z, .next
-	call VD_OUT
-	inc hl
-	jr .loop
-
-.next:
-	inc hl
-	ld a, (hl)
-	or a
-	jr z, .end
-	ld a, ' '
-	call VD_OUT
-	jr .loop
 	
-.end:
-	ld a, '\n'
-	call VD_OUT
+.loop:	cp '0'		; Check if number (i.e. 0-9)
+	jr c, .done
+	cp 3ah		; Test if > 9
+	jr nc, .check_alpha	; Yes, check for alpha (i.e. a-f)
+	and 0fh		; Convert from ASCII
+	jr .add_to_de
+	
+.check_alpha:
+	and 00dfh		; Make upper case
+	cp 'A'
+	jr c, .invalid
+	cp 'G'
+	jr nc, .invalid
+	sub 'A'-10
+
+.invalid:
+	scf
+	ret
+
+.add_to_de:		; Store A in HL
+	push bc
+	ld b, a		; Store A
+	ld a, 0f0h
+	and d		; Check if enough room in HL
+	jr nz, .error	; No, quit with error
+
+	sla e  		; Rotate hl to fit
+	rl d
+	sla e
+	rl d
+	sla e
+	rl d
+	sla e
+	rl d
+	
+	ld a, b		; Restore A
+	pop bc
+	or e  		; Add it to HL
+	ld e, a		;
+	inc hl		; Increase pointer
+	ld a, (hl)
+	jr .loop	; Next char
+
+.error:
+	pop bc
+	scf
+	ret
+.done:
+	xor a
 	ret
 
 
-CMD_TABLE:
-	db "ECHO", US
-	dw ECHO
-	db 0
+; ***********************************************************
+; Title:	Print a hex number
+; Name: 	PRINTNUM
+; Purpose:	Prints the value in A using VD_OUT.
+; Entry:	Register A - Value to be printed
+; Exit:		None
+;
+; Registers used:
+; ***********************************************************
+PRINTNUM:
+	push de
+	push af
+	ld e, a
+	
+	srl a		; Get the first hex character by
+	srl a		; shifting A right four times
+	srl a
+	srl a
 
-	msg SH_PMT, "> "
-	msg SH_ERR, "?\n"
+	cp 0ah		; Check if the value is greater than or equal
+	   		; to $a
+	jp m, .pn1	; No, it's below $a
+	add a, 'A'-'0'-10	; Yes, it's 10-15.
+	    		; Add the difference between '0' and 'A'
+
+.pn1:	add a, '0'	; Convert into ASCII
+	call VD_OUT	; Print first part
+
+	ld a, e		; Restore the original A
+	and 0fh		; and mask the lower four bits
+
+	cp 0ah		; Again, check if value is below $a
+	jp m, .pn2	; No, it's below $a
+	add a, 'A'-'0'-10	; Yes, it's 10-15.
+	    		; Add the difference between '0' and 'A'
+.pn2:	add a, '0'		; Convert into ASCII
+	call VD_OUT	; Print second part
+	pop af
+	pop de
+	ret
 

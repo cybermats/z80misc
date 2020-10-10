@@ -10,7 +10,22 @@ INIT:
 	ld a, 1h
 	out (OUTPORT), a
 	ld SP, STACK_START		; Set Stack to end of memory
-	ld a, 07h			; Set up interrupt page
+
+
+	ld hl, INT_TABLE		; Clear interrupt table
+	xor a
+	ld (hl), a
+	ld d, h
+	ld e, l
+	inc de
+	ld bc, INT_TABLE_END - INT_TABLE - 2
+	ldir
+					
+
+	ld a, INT_TABLE >> 8		; Set up interrupt page
+	ld hl, KEYBOARD_INT		; Prime with keyboard interrupt
+	ld (INT_KB), hl
+	
 	ld i, a				; 
 	im 2				; Set interrupt mode 2
 	
@@ -46,7 +61,7 @@ INIT:
 	call VD_OUTN
 
 	; Set up keyboard
-	ld a, INT_KEYBOARD_IDX
+	ld a, INT_KB - INT_TABLE
 	call KD_CONFIGURE
 
 

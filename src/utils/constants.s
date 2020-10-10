@@ -24,6 +24,7 @@ SIOCMDA:  	equ	00f2h
 SIOCMDB:  	equ	00f3h
 
 
+; Character constants
 RS:		equ 	01eh	; Record Separator
 US: 		equ 	01fh	; Unit Separator
 BACKSPC:	equ	08h	; Back-space
@@ -38,7 +39,12 @@ VARBEG:		equ	00fe00h ; This gives $200 bytes for variables
 				; each taking 17 bytes, i.e. 10 devices
 ;DVTE:		equ	00fe02h	; Device Table Entry memory pool
 
-IBUFFER:	equ	00fe00h ; Input buffer
+INT_TABLE:	equ	00fe00h	; Interrupt table
+INT_KB:		equ	00fe02h	; Keyboard interrupt
+
+INT_TABLE_END:	equ	00fe80h ; 
+
+IBUFFER:	equ	00fe80h ; Input buffer
 IBUFEND:	equ	00ff00h ; End of buffer, exclusive
 ;IBUFFER:	equ	007900h ; Input buffer
 ;IBUFEND:	equ	007a00h ; End of buffer, exclusive

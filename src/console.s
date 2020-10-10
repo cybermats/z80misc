@@ -27,16 +27,19 @@ KEYBOARD_INT:
 	include "utils/video_driver.s"
 	include "utils/keyboard_driver.s"
 	include "utils/shell.s"
+	include "cmds/echo.s"
+	include "cmds/dump.s"
+	include "cmds/run.s"
 
 
 
 
 
-	org 0700h
-INT_TABLE:			; Interrupt table
-	dw INIT			; Initialize
-INT_KEYBOARD_IDX:		equ ($-INT_TABLE)
-	dw KEYBOARD_INT		; Keyboard handler
+;	org 0780h
+;INT_TABLE:			; Interrupt table
+;	dw INIT			; Initialize
+;INT_KEYBOARD_IDX:		equ ($-INT_TABLE)
+;	dw KEYBOARD_INT		; Keyboard handler
 
 	org 07feh
 	dw 0000h
