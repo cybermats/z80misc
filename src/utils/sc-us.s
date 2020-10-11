@@ -41,14 +41,14 @@ KD_SCANCODES_CTRL:	; Scan Code set 2, Ctrl
 	db 0, 0, 0, 0, 0, 0, 0, 0		; 08h
 	db 0, 0, 0, 0, 0, 11h, 0, 0		; 10h
 	db 0, 0, 1ah, 13h, 01h, 17h, 0, 0	; 18h
-	db 0, 03h, 18h, 04h, 05h, 0, 0, 0	; 20h
-	db 0, 0, 16h, 06h, 14h, 12h, 0, 0	; 28h
+	db 0, 03h, 18h, 04h, 05h, 1ch, 1bh, 0	; 20h
+	db 0, 0, 16h, 06h, 14h, 12h, 1dh, 0	; 28h
 	db 0, 0eh, 02h, 08h, 07h, 19h, 1eh, 0	; 30h
-	db 0, 0, 0dh, 0ah, 15h, 0, 0, 0 	; 38h
+	db 0, 0, 0dh, 0ah, 15h, 1fh, 7fh, 0 	; 38h
 	db 0, 0, 0bh, 09h, 0fh, 0, 0, 0	; 40h
-	db 0, 0, 0, 12h, 0, 10h, 1fh, 0	; 48h
-	db 0, 0, 0, 0, 1bh, 0, 0, 0  	; 50h "
-	db 0, 0, 0, 1dh, 0, 1ch, 0, 0	; 58h
+	db 0, 0, 0, 12h, 0, 10h, 0, 0	; 48h
+	db 0, 0, 0, 0, 0, 0, 0, 0  	; 50h "
+	db 0, 0, 0, 0, 0, 0, 0, 0	; 58h
 	db 0, 0, 0, 0, 0, 0, 08h, 0  		; 60h
 	endif
 KD_SCANCODES_CTRL_LEN:    equ ($ - KD_SCANCODES_CTRL) + KD_SCANCODES_OFFSET
