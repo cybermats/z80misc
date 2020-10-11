@@ -173,9 +173,6 @@ KD_NEXT_VAL:
 	scf
 	jr .done
 
-;	halt   			; Not different, halt until there is
-;	jr .loop
-
 .input_available:
 	ld a, (de)		; We have values, so load the oldest value
 	ld c, a			; Store it elsewhere

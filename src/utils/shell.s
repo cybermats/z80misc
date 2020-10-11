@@ -35,8 +35,8 @@ SH_WHAT:
 	ld bc, MSG_WHAT_LEN
 	call SH_OUTN
 	ret
+
 SH_IN:
-;	jp (KD_NEXT_KVAL)
 	call KD_NEXT_VAL
 	ret nc
 	
@@ -49,7 +49,6 @@ SH_IN:
 
 SH_OUT:
 	IF INC_SERIAL
-		out (OUTPORT), a
 		call SER_SEND
 	ENDIF
 	jp (VD_OUT)
