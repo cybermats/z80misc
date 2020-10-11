@@ -64,7 +64,6 @@ SH_OUTN:
 	or c
 	ret z
 	jr SH_OUTN
-;	jp (VD_OUTN)
 
 
 ; ***********************************************************
@@ -147,10 +146,13 @@ READ_LN:
 	ret
 
 .back_space:
+	ld a, d			; Check if at the 
+	or e  			; beginning of the line
+	jr z, .loop		; If yes, ignore back space
 	dec hl
 	inc bc
 	dec de
-	jr z, .loop
+	ld a, BACKSPC
 	call SH_OUT
 	jr .loop
 

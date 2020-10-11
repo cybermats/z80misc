@@ -1,6 +1,6 @@
 X Add serial support
-* Add support for serial ints
-* Fix bug with backspace in SHELL
+X Add support for serial ints
+X Fix bug with backspace in SHELL
 * Add back full scan codes for keyboard into RAM
 * Move code to be called from rst
 * build SD card reader
