@@ -139,6 +139,7 @@ VD_OUT:
 ; Exit:		None
 ; Registers used:	 A, HL, BC
 ; ***********************************************************
+	IF 0
 VD_OUTN:
 	push de
 	push hl
@@ -182,7 +183,6 @@ VD_OUTN:
 	jr z, .done
 	jr .loop
 	
-
 	
 VD_NEW_LINE:
 	push af
@@ -200,6 +200,7 @@ VD_NEW_LINE:
 	pop af
 	ret
 	
+	ENDIF
 	
 	
 	
@@ -300,6 +301,7 @@ VD_MOVE_CURSOR_REL:
 ; Exit:		Cursor has been moved, and variables updated.
 ; Registers used:      A
 ; ***********************************************************
+	IF 0
 VD_MOVE_CURSOR:
 	push hl		; Save status
 	push de
@@ -325,6 +327,8 @@ VD_MOVE_CURSOR:
 	pop hl
 	ret
 
+	ENDIF
+	
 ; ***********************************************************
 ; Title:	Update cursor position on screen
 ; Name: 	UPDATE_CURSOR

@@ -28,7 +28,7 @@ SIOCMDB:  	equ	00f3h
 RS:		equ 	01eh	; Record Separator
 US: 		equ 	01fh	; Unit Separator
 BACKSPC:	equ	08h	; Back-space
-EOF:		equ	1ah	; End Of File
+EOT:		equ	04h	; End Of Transmission
 NUL:		equ	00h	; Null
 
 ; Memory Locations

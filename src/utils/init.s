@@ -59,10 +59,6 @@ INIT:
 	ld a, 4h		; Indicate that the video has been configured
 	out (OUTPORT), a
 
-	ld hl, MSG_INIT
-	ld bc, MSG_INIT_LEN
-	call SH_OUTN
-
 	IF INC_SERIAL
 	    	; Set up serial
 		ld a, INT_SR - INT_TABLE
@@ -82,15 +78,8 @@ INIT:
 	
 	; All done
 
-	ld hl, MSG_DONE
-	ld bc, MSG_DONE_LEN
-	call SH_OUTN
-
 	ei
 	jp MAIN
 
 
 
-MESSAGES:
-	msg MSG_INIT, "Init..."
-	msg MSG_DONE, "Ok\n"

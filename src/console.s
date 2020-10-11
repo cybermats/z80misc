@@ -1,6 +1,7 @@
 
-INC_XMODEM:	equ FALSE
+INC_XMODEM:	equ TRUE
 INC_SERIAL:	equ TRUE
+INC_ECHO:	equ TRUE
 
 
 	CPU z80
@@ -41,7 +42,9 @@ SERIAL_INT:
 	ENDIF
 	
 	include "utils/shell.s"
-	include "cmds/echo.s"
+	IF INC_ECHO
+		include "cmds/echo.s"
+	ENDIF
 	include "cmds/dump.s"
 	include "cmds/run.s"
 	IF INC_XMODEM

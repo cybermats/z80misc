@@ -1,8 +1,10 @@
 
 
 CMD_TABLE:
-	db "ECHO", US
-	dw ECHO
+	IF INC_ECHO
+		db "ECHO", US
+		dw ECHO
+	ENDIF
 	db "DUMP", US
 	dw PRINTMEM_ARG
 	db "RUN", US
@@ -14,7 +16,7 @@ CMD_TABLE:
 	db 0
 
 	msg MSG_PMT,	"> "
-	msg MSG_ERR, 	"Error\n"
+	msg MSG_ERR, 	"Err!\n"
 	msg MSG_HOW, 	"How?\n"
 	msg MSG_WHAT, 	"What?\n"
 
@@ -126,7 +128,7 @@ READ_LN:
 	call SH_IN		; Get next key
 	cp BACKSPC		; Check if back space
 	jr z, .back_space
-	cp EOF			; Check if EOF
+	cp EOT			; Check if End of Transmission
 	jr z, .return
 
 	call SH_OUT	
