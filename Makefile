@@ -9,8 +9,8 @@ DEP=./tools/asmdep.py
 MAKEDEPEND=$(DEP) -t $@ $< $(DEP_DIR)/$*.d
 
 PROGRAMMER=minipro
-EEPROM=AT28C25
-#EEPROM=CAT28C16A
+#EEPROM=AT28C25
+EEPROM=CAT28C16A
 
 SRC_DIR=./src
 BIN_DIR=./build
@@ -44,6 +44,9 @@ $(BIN_DIR)/%.bin: $(SRC_DIR)/%.s $(DEP_DIR)/%.d | $(DEP_DIR)
 
 bios:	$(BIN_DIR)/bios.bin
 	@echo "Building bios..."
+
+console: $(BIN_DIR)/console.bin
+	$(PROGRAMMER) -p $(EEPROM) -z -w build/console.bin
 
 .PHONY: clean help
 

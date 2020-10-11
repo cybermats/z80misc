@@ -1,4 +1,4 @@
-* Add serial support
+X Add serial support
 * Add support for serial ints
 * Fix bug with backspace in SHELL
 * Add back full scan codes for keyboard into RAM

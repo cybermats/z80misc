@@ -58,20 +58,30 @@ INIT:
 
 	ld hl, MSG_INIT
 	ld bc, MSG_INIT_LEN
-	call VD_OUTN
+	call SH_OUTN
+
+	IF INC_SERIAL
+	    	; Set up serial
+		ld a, 0
+		call SER_CONFIGURE
+
+		ld a, 5h		; Indicate that the serial has been configured
+		out (OUTPORT), a
+	ENDIF
 
 	; Set up keyboard
 	ld a, INT_KB - INT_TABLE
 	call KD_CONFIGURE
 
-
-	; All done
-	ld a, 5h		; Indicate that the system is ok
+	ld a, 6h		; Indicate that the keyboard has been configured
 	out (OUTPORT), a
+
+	
+	; All done
 
 	ld hl, MSG_DONE
 	ld bc, MSG_DONE_LEN
-	call VD_OUTN
+	call SH_OUTN
 
 	ei
 	jp MAIN

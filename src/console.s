@@ -1,3 +1,8 @@
+
+INC_XMODEM:	equ FALSE
+INC_SERIAL:	equ TRUE
+
+
 	CPU z80
 	include "utils/macro.s"
 	
@@ -26,11 +31,18 @@ KEYBOARD_INT:
 	include "utils/timing.s"
 	include "utils/video_driver.s"
 	include "utils/keyboard_driver.s"
+	
+	IF INC_SERIAL
+		include "utils/serial_driver.s"
+	ENDIF
+	
 	include "utils/shell.s"
 	include "cmds/echo.s"
 	include "cmds/dump.s"
 	include "cmds/run.s"
-
+	IF INC_XMODEM
+		include "cmds/xmodem.s"
+	ENDIF
 
 
 
@@ -42,7 +54,7 @@ KEYBOARD_INT:
 ;	dw KEYBOARD_INT		; Keyboard handler
 
 	org 07feh
-	dw 0000h
+	dw 0ffffh
 
 	end
 

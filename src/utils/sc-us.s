@@ -18,6 +18,7 @@ KD_SCANCODES:	; Scan Code set 2, no meta
 KD_SCANCODES_LEN:      	  equ ($ - KD_SCANCODES) + KD_SCANCODES_OFFSET
 
 KD_SCANCODES_SHIFT:	; Scan Code set 2, shift
+	IF 0
 	db 0, 0, 0, 0, 0, 0, 0, 0		; 00h Handled by OFFSET
 	db 0, 0, 0, 0, 0, 0, '~', 0		; 08h
 	db 0, 0, 0, 0, 0, 'Q', '!', 0		; 10h
@@ -31,9 +32,11 @@ KD_SCANCODES_SHIFT:	; Scan Code set 2, shift
 	db 0, 0, '"', 0, '{', '+', 0, 0  	; 50h "
 	db 0, 0, '\n', '}', 0, '|', 0, 0	; 58h
 	db 0, 0, 0, 0, 0, 0, 08h, 0  		; 60h
+	ENDIF
 KD_SCANCODES_SHIFT_LEN:   equ ($ - KD_SCANCODES_SHIFT) + KD_SCANCODES_OFFSET
 
 KD_SCANCODES_CTRL:	; Scan Code set 2, Ctrl
+	if 0
 	db 0, 0, 0, 0, 0, 0, 0, 0		; 00h Handled by OFFSET
 	db 0, 0, 0, 0, 0, 0, 0, 0		; 08h
 	db 0, 0, 0, 0, 0, 11h, 0, 0		; 10h
@@ -47,5 +50,6 @@ KD_SCANCODES_CTRL:	; Scan Code set 2, Ctrl
 	db 0, 0, 0, 0, 1bh, 0, 0, 0  	; 50h "
 	db 0, 0, 0, 1dh, 0, 1ch, 0, 0	; 58h
 	db 0, 0, 0, 0, 0, 0, 08h, 0  		; 60h
+	endif
 KD_SCANCODES_CTRL_LEN:    equ ($ - KD_SCANCODES_CTRL) + KD_SCANCODES_OFFSET
 

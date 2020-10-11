@@ -41,7 +41,7 @@ PRINTMEM_ARG:
 ; Title:	Print memory content
 ; Name: 	PRINTMEM
 ; Purpose:	Does a hex dump of the specified memory
-; 		using VD_OUT.
+; 		using SH_OUT.
 ; Entry:	Register HL - Base address
 ; 		Register C - Length
 ; Exit:		None
@@ -66,20 +66,20 @@ PRINTMEM:
 	ld a, l
 	call PRINTNUM
 	ld a, ' '
-	call VD_OUT
+	call SH_OUT
 	ld a, ' '
-	call VD_OUT
+	call SH_OUT
 
 	; Print memory dump in hex
 .pm2:	ld a, (hl)
 	call PRINTNUM
 	ld a, ' '
-	call VD_OUT
+	call SH_OUT
 	ld a, b
 	cp 9
 	jr nz, .pm3
 	ld a, ' '
-	call VD_OUT
+	call SH_OUT
 	
 
 .pm3:	inc hl
@@ -87,7 +87,7 @@ PRINTMEM:
 	dec b
 	jr nz, .pm2
 	ld a, '\n'
-	call VD_OUT
+	call SH_OUT
 	jr PRINTMEM
 
 

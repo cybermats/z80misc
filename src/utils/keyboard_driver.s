@@ -165,8 +165,12 @@ KD_NEXT_KVAL:
 	and a			; Clear Carry for SBC
 	sbc hl, de		; Compare the values
 	jr nz, .input_available	; Jump if the values are different
-	halt   			; Not different, halt until there is
-	jr .loop
+
+	scf
+	jr .done
+
+;	halt   			; Not different, halt until there is
+;	jr .loop
 
 .input_available:
 	ld a, (de)		; We have values, so load the oldest value
@@ -182,6 +186,7 @@ KD_NEXT_KVAL:
 
 .update_ptr:
 	ld (KB_START_PTR), de	; Update the start pointer
+	or a
 .done:
 	ld a, c
 	pop hl

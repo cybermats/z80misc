@@ -21,7 +21,7 @@ ECHO:
 	ld a, (hl)
 	cp RS
 	jr z, .next
-	call VD_OUT
+	call SH_OUT
 	inc hl
 	jr .loop
 
@@ -31,12 +31,12 @@ ECHO:
 	or a
 	jr z, .end
 	ld a, ' '
-	call VD_OUT
+	call SH_OUT
 	jr .loop
 	
 .end:
 	ld a, '\n'
-	call VD_OUT
+	call SH_OUT
 	ret
 
 

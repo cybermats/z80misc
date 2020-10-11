@@ -26,12 +26,17 @@ SER_CONFIGURE:
 	; Channel reset
 	ld a, SIO_WR0_REG0 | SIO_WR0_CMD_CHNL_RST
 	out (SIOCMDB), a
+
+	ld a, e
+	or a
+	jr z, .no_vector
 	; Pointer 2 
 	ld a, SIO_WR0_REG2
 	out (SIOCMDB), a
 	; Interrupt vector
 	ld a, e
 	out (SIOCMDB), a
+.no_vector
 	; Ptr 4. Reset Ext/Status interrupts
 	ld a, SIO_WR0_REG4 | SIO_WR0_CMD_RST_EXT_STS_INTS
 	out (SIOCMDB), a
@@ -105,6 +110,7 @@ SER_POLL:
 ;
 ; Registers used:      A
 ; ***********************************************************
+	if 0
 SER_GET:
 	push de
 	push hl
@@ -129,9 +135,8 @@ SG_FOUND:  			; Stuff is available
 	pop hl
 	pop de
 	ret
+	endif
 	
-	
-
 ; ***********************************************************
 ; Title:	Serial Callback
 ; Name: 	SER_CALLBACK
@@ -143,6 +148,7 @@ SG_FOUND:  			; Stuff is available
 ; Registers used:      A, DE, HL
 ; ***********************************************************
 SER_CALLBACK:
+	if 0
 	ld d, 0
 	ld a, (SR_END_PTR)
 	ld e, a
@@ -158,7 +164,8 @@ SER_CALLBACK:
 	ld a, SIO_WR0_REG0 | SIO_WR0_CMD_RST_EXT_STS_INTS
 	out (SIOCMDB), a
 	ret
-	
+
+	endif
 
 ; ***********************************************************
 ; Title:	Send data to the serial port

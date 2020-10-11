@@ -7,6 +7,10 @@ CMD_TABLE:
 	dw PRINTMEM_ARG
 	db "RUN", US
 	dw RUN_ARG
+	IF INC_XMODEM
+		db "XM", US
+		dw XMODEM
+	ENDIF
 	db 0
 
 	msg MSG_PMT,	"> "
@@ -17,20 +21,52 @@ CMD_TABLE:
 SH_ERR:
 	ld hl, MSG_ERR
 	ld bc, MSG_ERR_LEN
-	call VD_OUTN
+	call SH_OUTN
 	ret
 
 SH_HOW:
 	ld hl, MSG_HOW
 	ld bc, MSG_HOW_LEN
-	call VD_OUTN
+	call SH_OUTN
 	ret
 	
 SH_WHAT:
 	ld hl, MSG_WHAT
 	ld bc, MSG_WHAT_LEN
-	call VD_OUTN
+	call SH_OUTN
 	ret
+SH_IN:
+;	jp (KD_NEXT_KVAL)
+	call KD_NEXT_KVAL
+	ret nc
+	
+	IF INC_SERIAL
+		call SER_POLL
+	   	ret nc
+	ENDIF
+	
+	jr SH_IN
+
+SH_OUT:
+	IF INC_SERIAL
+		out (OUTPORT), a
+		call SER_SEND
+	ENDIF
+	jp (VD_OUT)
+
+SH_OUTN:
+	ld a, (HL)
+	or a
+	ret z
+	call SH_OUT
+	inc hl
+	dec bc
+	ld a, b
+	or c
+	ret z
+	jr SH_OUTN
+;	jp (VD_OUTN)
+
 
 ; ***********************************************************
 ; Title:	A simple shell
@@ -51,7 +87,7 @@ SH_WHAT:
 SHELL:
 	ld hl, MSG_PMT
 	ld bc, MSG_PMT_LEN
-	call VD_OUTN		; Print prompt
+	call SH_OUTN		; Print prompt
 
 	ld hl, IBUFFER
 	ld bc, IBUFEND - IBUFFER - 2 ; For an extra null terminator
@@ -89,13 +125,13 @@ READ_LN:
 	ld de, 0
 	dec bc			; Make room for a null
 .loop:
-	call KD_NEXT_KVAL	; Get next key
+	call SH_IN		; Get next key
 	cp BACKSPC		; Check if back space
 	jr z, .back_space
 	cp EOF			; Check if EOF
 	jr z, .return
 
-	call VD_OUT	
+	call SH_OUT	
 	cp '\n'			; Check if return
 	jr z, .return
 	ld (hl), a
@@ -116,7 +152,7 @@ READ_LN:
 	inc bc
 	dec de
 	jr z, .loop
-	call VD_OUT
+	call SH_OUT
 	jr .loop
 
 
@@ -364,7 +400,7 @@ READNUM:
 ; ***********************************************************
 ; Title:	Print a hex number
 ; Name: 	PRINTNUM
-; Purpose:	Prints the value in A using VD_OUT.
+; Purpose:	Prints the value in A using SH_OUT.
 ; Entry:	Register A - Value to be printed
 ; Exit:		None
 ;
@@ -387,7 +423,7 @@ PRINTNUM:
 	    		; Add the difference between '0' and 'A'
 
 .pn1:	add a, '0'	; Convert into ASCII
-	call VD_OUT	; Print first part
+	call SH_OUT	; Print first part
 
 	ld a, e		; Restore the original A
 	and 0fh		; and mask the lower four bits
@@ -397,7 +433,7 @@ PRINTNUM:
 	add a, 'A'-'0'-10	; Yes, it's 10-15.
 	    		; Add the difference between '0' and 'A'
 .pn2:	add a, '0'		; Convert into ASCII
-	call VD_OUT	; Print second part
+	call SH_OUT	; Print second part
 	pop af
 	pop de
 	ret
