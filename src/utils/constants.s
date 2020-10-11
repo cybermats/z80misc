@@ -48,8 +48,8 @@ INT_TABLE_END:	equ	00fe80h ;
 
 IBUFFER:	equ	00fe80h ; Input buffer
 IBUFEND:	equ	00ff00h ; End of buffer, exclusive
-;IBUFFER:	equ	007900h ; Input buffer
-;IBUFEND:	equ	007a00h ; End of buffer, exclusive
+;IBUFFER:	equ	0078c0h ; Input buffer
+;IBUFEND:	equ	0079c0h ; End of buffer, exclusive
 
 CURSOR_COL:	equ	00ff00h
 CURSOR_ROW:	equ	00ff01h
