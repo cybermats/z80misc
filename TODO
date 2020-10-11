@@ -7,3 +7,6 @@ X Fix bug with backspace in SHELL
 * add support for FAT12
 * rebuild console.s into bios.s that loads from SD card
 * rebuild console.s into console app that is loaded from SD
+* Add \t support to shell. Both for moving and as a white space.
+* Add support for escaped strings in shell. " and \
+* Add poke and peek to shell
