@@ -22,10 +22,13 @@ INIT:
 	ldir
 					
 
-	ld a, INT_TABLE >> 8		; Set up interrupt page
 	ld hl, KEYBOARD_INT		; Prime with keyboard interrupt
 	ld (INT_KB), hl
+
+	ld hl, SERIAL_INT		; Prime with serial interrupt
+	ld (INT_SR), hl
 	
+	ld a, INT_TABLE >> 8		; Set up interrupt page
 	ld i, a				; 
 	im 2				; Set interrupt mode 2
 	
@@ -62,7 +65,7 @@ INIT:
 
 	IF INC_SERIAL
 	    	; Set up serial
-		ld a, 0
+		ld a, INT_SR - INT_TABLE
 		call SER_CONFIGURE
 
 		ld a, 5h		; Indicate that the serial has been configured

@@ -37,14 +37,14 @@ SH_WHAT:
 	ret
 SH_IN:
 ;	jp (KD_NEXT_KVAL)
-	call KD_NEXT_KVAL
+	call KD_NEXT_VAL
 	ret nc
 	
 	IF INC_SERIAL
-		call SER_POLL
+		call SR_NEXT_VAL
 	   	ret nc
 	ENDIF
-	
+	halt
 	jr SH_IN
 
 SH_OUT:

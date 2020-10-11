@@ -23,6 +23,10 @@ KEYBOARD_INT:
 	ei
 	reti
 
+SERIAL_INT:
+	call SER_CALLBACK
+	ei
+	reti
 
 
 

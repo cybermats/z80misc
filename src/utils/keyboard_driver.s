@@ -68,7 +68,7 @@ KD_CONFIGURE:
 	
 	ld a, SIO_WR1_RX_INT_DIS	; Default to disabled
 	jr z, .no_ints ; Jump if no vector is specified
-	ld a, SIO_WR1_RX_INT_FIRST	; Turn on ints
+	ld a, SIO_WR1_RX_INT_FIRST | SIO_WR1_ST_AFF_INT_VEC	; Turn on ints
 .no_ints
 	out (SIOCMDA), a
 
@@ -138,18 +138,22 @@ KD_BUFFER_KEY:
 
 ; ***********************************************************
 ; Title:	Get values from the keyboard
-; Name: 	KD_NEXT_KVAL
+; Name: 	KD_NEXT_VAL
 ; Purpose:	Returns the next value from the circular
 ; 		buffer used to store keys from the keyboard.
 ;
 ;		Blocks if no values are present.
 ;
 ; Entry:	None
-; Exit:		Register A = value
+; Exit:		If keys are available:
+; 		   Register A = value
+;		   Carry flag = 0
+;		else
+;		   Carry flag = 1
 ;
 ; Registers used:      A
 ; ***********************************************************
-KD_NEXT_KVAL:
+KD_NEXT_VAL:
 	push bc
 	push de
 	push hl

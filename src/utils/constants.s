@@ -40,7 +40,9 @@ VARBEG:		equ	00fe00h ; This gives $200 bytes for variables
 ;DVTE:		equ	00fe02h	; Device Table Entry memory pool
 
 INT_TABLE:	equ	00fe00h	; Interrupt table
-INT_KB:		equ	00fe02h	; Keyboard interrupt
+INT_SIO:	equ	00fe10h	; SIO Interrupts base vector
+INT_SR:		equ	00fe14h ; Serial int
+INT_KB:		equ	00fe1ch ; Keyboard int
 
 INT_TABLE_END:	equ	00fe80h ; 
 
