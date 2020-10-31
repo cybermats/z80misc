@@ -1,9 +1,12 @@
 ASM=asl
-ASMFLAGS=-cpu Z80 -Werror
+ASMFLAGS=-cpu Z80 -Werror -L
 
 BIN_GEN=p2bin
 BIN_FLAGS=-r \$$-\$$ -k
 DEFINES=-D POST
+
+HEX_GEN=p2hex
+HEX_FLAGS=-r \$$-\$$
 
 DEP=./tools/asmdep.py
 MAKEDEPEND=$(DEP) -t $@ $< $(DEP_DIR)/$*.d
@@ -16,6 +19,7 @@ SRC_DIR=./src
 BIN_DIR=./build
 PLS_DIR=$(BIN_DIR)
 DEP_DIR=$(BIN_DIR)/deps
+HEX_DIR=$(BIN_DIR)
 
 vpath %.s $(SRC_DIR)
 
@@ -35,7 +39,8 @@ $(BIN_DIR)/%.bin: $(SRC_DIR)/%.s
 $(BIN_DIR)/%.bin: $(SRC_DIR)/%.s $(DEP_DIR)/%.d | $(DEP_DIR)
 	$(dir_guard)
 	@$(MAKEDEPEND)
-	$(ASM) $(ASMFLAGS) $(DEFINES) -o $(PLS_DIR)/$*.p $< 
+	$(ASM) $(ASMFLAGS) $(DEFINES) -o $(PLS_DIR)/$*.p $<
+	$(HEX_GEN) $(PLS_DIR)/$*.p $(HEX_DIR)/$*.hex $(HEX_FLAGS)
 	$(BIN_GEN) $(PLS_DIR)/$*.p $@ $(BIN_FLAGS)
 
 

@@ -24,6 +24,11 @@ SIOCMDA:  	equ	00f2h
 SIOCMDB:  	equ	00f3h
 
 
+; SPI Ports
+SPIDATA:	equ	0030h
+SPICTRL1:	equ	0031h
+SPICTRL2:	eqy	0033h
+
 ; Character constants
 RS:		equ 	01eh	; Record Separator
 US: 		equ 	01fh	; Unit Separator

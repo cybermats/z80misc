@@ -49,4 +49,9 @@ flycheck_*.el
 
 
 
+
+# HEX and LST files.
+*.hex
+*.lst
+
 /build/

@@ -15,7 +15,7 @@
 ; Registers used:      A, HL
 ; ***********************************************************
 
-SER_CONFIGURE:
+SR_CONFIGURE:
 	push de
 	ld e, a		; Save for later
 
@@ -89,7 +89,8 @@ SER_CONFIGURE:
 ;
 ; Registers used:      A
 ; ***********************************************************
-SER_POLL:
+	if 0
+SR_POLL:
 	ld a, SIO_WR0_REG0	; Load status of keyboard	; 7
 	out (SIOCMDB), a	       	      	 		; 11
 	in a, (SIOCMDB)						; 11
@@ -100,7 +101,7 @@ SER_POLL:
 	ccf   			       				; 4
 	ret							; 10
 								; ---
-								; 51/70
+	endif							; 51/70
 
 
 ; ***********************************************************
@@ -114,17 +115,17 @@ SER_POLL:
 ; Registers used:      A
 ; ***********************************************************
 	if 0
-SER_GET:
+SR_GET:
 	push de
 	push hl
-SG_LOOP:
+.loop:
 	ld de, (SR_START_PTR)	; Fetches START -> E, END -> D
 	ld a, d
 	cp e
-	jr nz, SG_FOUND
+	jr nz, .found
 	halt			; Nothing in buffer, halt
-	jr SG_LOOP		; Check if stuff is available
-SG_FOUND:  			; Stuff is available
+	jr .loop		; Check if stuff is available
+.found:  			; Stuff is available
 	ld d, 0
 	ld hl, SR_BUFFER_BEG
 	add hl, de
@@ -150,10 +151,10 @@ SG_FOUND:  			; Stuff is available
 ;
 ; Registers used:      A, DE, HL
 ; ***********************************************************
-SER_CALLBACK:
+SR_CALLBACK:
 	push af
 	in a, (SIODATAB)
-	call SER_BUFFER_KEY
+	call SR_BUFFER_KEY
 	ld a, SIO_WR0_CMD_EN_INT_NXT_RX_CHR
 	out (SIOCMDB), a
 	ld a, SIO_WR0_CMD_RTN_FRM_INT
@@ -192,7 +193,7 @@ SER_CALLBACK:
 ; Exit:		None
 ; Registers used:      A
 ; ***********************************************************
-SER_BUFFER_KEY:
+SR_BUFFER_KEY:
 	push hl
 	push de
 
@@ -283,7 +284,7 @@ SR_NEXT_VAL:
 ; Exit:		None
 ; Registers used:      A
 ; ***********************************************************
-SER_SEND:
+SR_SEND:
 	out (SIODATAB), a
 	ret
 

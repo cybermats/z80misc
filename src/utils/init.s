@@ -62,7 +62,7 @@ INIT:
 	IF INC_SERIAL
 	    	; Set up serial
 		ld a, INT_SR - INT_TABLE
-		call SER_CONFIGURE
+		call SR_CONFIGURE
 
 		ld a, 5h		; Indicate that the serial has been configured
 		out (OUTPORT), a

@@ -1,5 +1,3 @@
-;SER_SEND: equ 0
-;SER_POLL: equ 0
 
 ; ***********************************************************
 ; Title:	Receive XMODEM
@@ -24,22 +22,27 @@ XM_INIT_C:	equ 43h	; ASCII 'C' to start transmission
 	ex de, hl
 	xor a
 	cp (hl)
-	ret z
+	jr nz, .readnum
+	ld hl, 8000h
+	push hl
+	jr .start
 
+.readnum:
 	call READNUM	; Read Address
 	ex de, hl
 	push hl		; Store Address
+	ld a, 0
 	jp c, XM_err	; Is address valid?
-	
+.start:	
 	ld d, 1		; Packet counter
 	ld b, XM_INIT_C	; Send initial ACK
 XM_beg:	push bc		; Store so we can use bc for loop variables.
 	ld a, b		; Fetch the send char.
-	call SER_SEND
+	call SR_SEND
 	ld bc, 0	; Set up loop variables
 	ld e, 0
-XM_init:call SER_POLL	; Try a few times
-	jr nz, XM_exec	; Check if we got anything
+XM_init:call SR_NEXT_VAL	; Try a few times
+	jr nc, XM_exec	; Check if we got anything
 	djnz XM_init	; No, we didn't. Try again.
 	dec c
 	jr nz, XM_init
@@ -67,9 +70,8 @@ XM_exec:pop bc		; Clear stack
 	jp XM_err	; No known code, give up
 	
 XM_hdr:
-;	call SER_GET
-	call SER_POLL
-	jr z, XM_hdr
+	call SR_NEXT_VAL
+	jr c, XM_hdr
 	cp d		; Compare to packet counter
 	jr z, XM_hdr2	; Is this the next package?
 	dec d 		; No, check if prev
@@ -78,17 +80,15 @@ XM_hdr:
 	pop hl		; Yes, restore old HL
 	push hl		; Save HL
 XM_hdr2:
-;	call SER_GET
-	call SER_POLL
-	jr z, XM_hdr2
+	call SR_NEXT_VAL
+	jr c, XM_hdr2
 	cpl		; Invert second header
 	cp d
 	jr nz, XM_can	; Is this the expected package?
 	
 XM_body:
-;	call SER_GET	; Yes, start receiving data
-	call SER_POLL	; Yes, start receiving data
-	jr z, XM_body
+	call SR_NEXT_VAL	; Yes, start receiving data
+	jr c, XM_body
 	ld (hl), a
 	inc hl		; Bump counters and check if at end
 	dec e
@@ -96,14 +96,12 @@ XM_body:
 	jr XM_body
 
 XM_tl:
-;	call SER_GET	; Save sender CRC to BC
-	call SER_POLL	; Save sender CRC to BC
-	jr z, XM_tl
+	call SR_NEXT_VAL	; Save sender CRC to BC
+	jr c, XM_tl
 	ld b, a
 XM_tl2:
-;	call SER_GET
-	call SER_POLL
-	jr z, XM_tl2
+	call SR_NEXT_VAL
+	jr c, XM_tl2
 	ld c, a
 	ex (sp), hl	; Fetch old buffer
 	push de	 	; Save old package counter
@@ -132,7 +130,7 @@ XM_ack:	ld b, XM_ACK_C
 	jp XM_beg
 
 XM_end:	ld a, XM_ACK_C
-	call SER_SEND
+	call SR_SEND
 
 	ex de, hl	; Final package received.
 	ld l, 0
@@ -144,7 +142,7 @@ XM_end:	ld a, XM_ACK_C
 	
 XM_can:
 	ld a, XM_CAN_C
-	call SER_SEND
+	call SR_SEND
 	ld a, 3
 	jr XM_err	; Cancel everything
 	

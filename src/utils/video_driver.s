@@ -321,8 +321,6 @@ VD_MOVE_CURSOR:
 	add hl, de
 	djnz .loop
 .loop_done:
-	add hl, bc
-
 	pop de
 	pop hl
 	ret
@@ -379,6 +377,38 @@ VD_UPDATE_CURSOR:
 	pop hl
 	ret
 
+; ***********************************************************
+; Title:	Turns the cursor on or off
+; Name: 	VD_CURSOR_SHOW
+; Purpose:	
+; Entry:	Register A = 0 to turn off
+; 		Register A = !0 to turn on
+; Exit:		None
+; Registers used:      A
+; ***********************************************************
+VD_CURSOR_SHOW:
+	push bc
+	or a
+	jr nz, .turn_on
+	ld b, VD_CURSOR_OFF | VD_CURSOR_START
+	jr .output
+.turn_on:
+	ld b, VD_CURSOR_ON | VD_CURSOR_START
+.output:
+	ld a, 10	; Register 10
+	out (VADDRPORT), a
+	ld a, b
+	out (VDATAPORT), a
+	pop bc
+	ret
+	
+VD_CURSOR_ON:		equ 40h
+VD_CURSOR_OFF:		equ 20h
+
+VD_CURSOR_START:	equ 07h
+VD_CURSOR_END:		equ 0fh
+
+
 
 VD_INIT_TBL:
 	db 64h, 50h ; Horizontal Total, Horizontal Displayed
@@ -386,6 +416,7 @@ VD_INIT_TBL:
 	db 1fh, 0ch ; Vertical Total, Vertical Total Adjust
 	db 1eh, 1fh ; Vertical Displayed, Vertical Sync Position
 	db 00h, 0fh ; Interlace Mode, Maximum Scan Line Address
-	db 47h, 0fh ; Cursor start + mode, Cursor end
+	db VD_CURSOR_ON | VD_CURSOR_START ; Cursor start + mode
+	db VD_CURSOR_END ; Cursor end
 	db 00h, 00h ; Memory Start offset high, low
 	db 00h, 00h ; Cursor address high, low

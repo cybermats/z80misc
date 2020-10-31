@@ -15,8 +15,7 @@ PRINTMEM_ARG:
 	ex de, hl	; Ignore first token
 	xor a
 	cp (hl)		; Check if there is a first arg
-	ret z		; No, exit
-
+	jr z, .error	; No, exit
 	
 	call READNUM	; Parse address arg into short
 	push de		; Save value
@@ -25,7 +24,11 @@ PRINTMEM_ARG:
 	ld a, RS
 	cpir
 	jp po, .error
-	
+
+	xor a
+	cp (hl)		; Check if there is a first arg
+	jr z, .error	; No, exit
+
 	call READNUM	; Parse size arg into byte
 	jr c, .error	; Check if we could parse
 	ld c, e		; Second arg is < 256.
@@ -50,10 +53,6 @@ PRINTMEM_ARG:
 ; ***********************************************************
 
 PRINTMEM:
-	xor a			; Check length
-	or c
-	ret z			; If zero, quit
-
 	ld b, 16
 	ld a, c
 	cp b
@@ -88,6 +87,11 @@ PRINTMEM:
 	jr nz, .pm2
 	ld a, '\n'
 	call SH_OUT
+
+	xor a			; Check length
+	or c
+	ret z			; If zero, quit
+
 	jr PRINTMEM
 
 

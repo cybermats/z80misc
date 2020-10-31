@@ -1,6 +1,8 @@
 
 
 CMD_TABLE:
+	db "CLS", US
+	dw CLS
 	IF INC_ECHO
 		db "ECHO", US
 		dw ECHO
@@ -10,9 +12,10 @@ CMD_TABLE:
 	db "RUN", US
 	dw RUN_ARG
 	IF INC_XMODEM
-		db "XM", US
+		db "RX", US
 		dw XMODEM
 	ENDIF
+
 	db 0
 
 	msg MSG_PMT,	"> "
@@ -21,19 +24,19 @@ CMD_TABLE:
 	msg MSG_WHAT, 	"What?\n"
 
 SH_ERR:
-	ld hl, MSG_ERR
+	ld de, MSG_ERR
 	ld bc, MSG_ERR_LEN
 	call SH_OUTN
 	ret
 
 SH_HOW:
-	ld hl, MSG_HOW
+	ld de, MSG_HOW
 	ld bc, MSG_HOW_LEN
 	call SH_OUTN
 	ret
 	
 SH_WHAT:
-	ld hl, MSG_WHAT
+	ld de, MSG_WHAT
 	ld bc, MSG_WHAT_LEN
 	call SH_OUTN
 	ret
@@ -49,18 +52,26 @@ SH_IN:
 	halt
 	jr SH_IN
 
+SH_IN_NH:
+	call KD_NEXT_VAL
+	ret nc
+	call SR_NEXT_VAL
+	ret nc
+	scf
+	ret
+
 SH_OUT:
 	IF INC_SERIAL
-		call SER_SEND
+		call SR_SEND
 	ENDIF
 	jp (VD_OUT)
 
 SH_OUTN:
-	ld a, (HL)
+	ld a, (de)
 	or a
 	ret z
 	call SH_OUT
-	inc hl
+	inc de
 	dec bc
 	ld a, b
 	or c
@@ -356,16 +367,13 @@ READNUM:
 	jr .add_to_de
 	
 .check_alpha:
-	and 00dfh		; Make upper case
+	and 0dfh		; Make upper case
 	cp 'A'
 	jr c, .invalid
 	cp 'G'
 	jr nc, .invalid
 	sub 'A'-10
 
-.invalid:
-	scf
-	ret
 
 .add_to_de:		; Store A in HL
 	push bc
@@ -390,6 +398,10 @@ READNUM:
 	inc hl		; Increase pointer
 	ld a, (hl)
 	jr .loop	; Next char
+
+.invalid:
+	scf
+	ret
 
 .error:
 	pop bc
@@ -441,3 +453,24 @@ PRINTNUM:
 	pop de
 	ret
 
+; ***********************************************************
+; Title:	Clear screen
+; Name: 	CLS
+; Purpose:	Clears the video screen by setting all
+; 		memory to 0, and repositioning the cursor.
+; Entry:	None
+; Exit:		None
+;
+; Registers used:
+; ***********************************************************
+CLS:
+	ld hl, VRAMBEG
+	ld bc, VRAMEND - VRAMBEG + 1
+	xor a
+	call MFILL
+	xor a
+	ld (CURSOR_ROW), a
+	ld (CURSOR_COL), a
+	call VD_UPDATE_CURSOR
+
+	ret

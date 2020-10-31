@@ -1,13 +1,15 @@
 
 INC_XMODEM:	equ TRUE
 INC_SERIAL:	equ TRUE
-INC_ECHO:	equ TRUE
+INC_ECHO:	equ FALSE
 
 
 	CPU z80
 	include "utils/macro.s"
 	
 	org 0
+	jp INIT
+	jp BIOS
 	
 	include "utils/init.s"
 
@@ -25,7 +27,7 @@ KEYBOARD_INT:
 	reti
 
 SERIAL_INT:
-	call SER_CALLBACK
+	call SR_CALLBACK
 	ei
 	reti
 
@@ -33,9 +35,11 @@ SERIAL_INT:
 
 	include "utils/constants.s"
 	include "utils/ramtest.s"
-	include "utils/timing.s"
+;	include "utils/timing.s"
 	include "utils/video_driver.s"
 	include "utils/keyboard_driver.s"
+	include "utils/bios.s"
+	include "utils/util.s"
 	
 	IF INC_SERIAL
 		include "utils/serial_driver.s"
@@ -50,7 +54,6 @@ SERIAL_INT:
 	IF INC_XMODEM
 		include "cmds/xmodem.s"
 	ENDIF
-
 
 
 
