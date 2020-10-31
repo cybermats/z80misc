@@ -167,34 +167,35 @@ NEW_SYMBOL:
 ; Purpose:	Looks through the lookup table to find
 ; 		if we have a built in function.
 ;
-; Entry:	Register HL = Pointer to buffer
+; Entry:	Register DE = Pointer to buffer
 ; 		
-; Exit:		Register BC = Symbol name
+; Exit:		Register HL = Symbol name
 ;
 ; Registers used:      A, HL, BC, DE, IX
 ; ***********************************************************
 BUILTIN:
+	ex hl, de
 	push hl
-	ld bc, 0	; Entry counter
+	ld de, 0	; Entry counter
 	ld ix, LOOKUP_TABLE_BEGIN
 
 .row_loop:
-	ld e, (ix)
-	ld d, (ix + 1)
+	ld c, (ix)
+	ld b, (ix + 1)
 .item_loop:
-	ld a, (de)
+	ld a, (bc)
 
 	or a
 	jr z, .item_end
 
 	cp (hl)
-	inc de
+	inc bc
 	inc hl
 	
 	jr z, .item_loop
 	; Not same
 .next_row:
-	inc bc	; Increase 
+	inc de	; Increase 
 	
 	inc ix	; Next item
 	inc ix
@@ -202,8 +203,8 @@ BUILTIN:
 	inc ix
 
 	ld a, (ix)	; Check if we're at the end.
-	ld e, (ix+1)
-	or e
+	ld c, (ix+1)
+	or c
 	jr z, .not_found
 
 	pop hl
@@ -215,6 +216,7 @@ BUILTIN:
 	jr nz, .next_row
 .not_found:
 	pop hl
+	ex hl, de
 	ret
 
 
@@ -310,8 +312,15 @@ READ:
 		_case c
 			; Handle string
 .do_string:
+			; Prewarm the string if it's too short.
+			ld e, a
+			xor a
+			ld ((BUFFER_BEGIN+2)), a
+			ld a, e
+			
 			ld de, BUFFER_BEGIN
 			ld bc, BUFFER_END - BUFFER_BEGIN
+			
 .string_loop:
 			ld (de), a
 			inc de
@@ -329,7 +338,29 @@ READ:
 			xor a
 			ld (de), a
 
+			ld de, BUFFER_BEGIN
+			call BUILTIN
+			ld a, h
+			or a
+			jr nz, .string_pack
+			ld a, l
+			cp LOOKUP_TABLE_SIZE
+			jr nc, .string_symbol
+.string_pack:
+			; Convert to Radix40
+			; Check that string length is <= 3
+			ld de, BUFFER_BEGIN
+			ld a, (de)
+			or a
+			jr z, _READ_default
+			call ISALNUM
+			jr nc, _READ_default
 			
+			
+
+
+.string_symbol:
+			call NEW_SYMBOL
 
 			or a
 			ret
@@ -409,7 +440,6 @@ STR_FN_LAMBDA:
 	db "lambda", 0
 
 
-LOOKUP_TABLE_SIZE:   equ	(LOOKUP_TABLE_END - LOOKUP_TABLE_BEGIN) / 4
 LOOKUP_TABLE_BEGIN:
 	dw STR_FN_SYMBOLS, 0
 	dw STR_FN_NIL, 0
@@ -417,5 +447,6 @@ LOOKUP_TABLE_BEGIN:
 	dw STR_FN_LAMBDA, 0
 LOOKUP_TABLE_END:
 	dw 0		  ; End of table
+LOOKUP_TABLE_SIZE:   equ	(LOOKUP_TABLE_END - LOOKUP_TABLE_BEGIN) / 4
 
 	end
