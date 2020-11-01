@@ -129,11 +129,11 @@ PACK40:
 
 	add a, l
 	ld l, a
-	ret nc
+	jr nc, .done
 	inc h
+.done:
+	scf
 	ret
-
-
 
 .toradix:
 	ld a, (de)

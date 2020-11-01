@@ -1,8 +1,10 @@
+	cpu Z80UNDOC
+
 	include "utils/flow_macro.s"
 
 ; Constants
 WORKSPACE_BEGIN:	equ	09000h
-WORKSPACE_END:		equ	09008h
+WORKSPACE_END:		equ	09100h
 ;WORKSPACE_END:		equ	0a000h
 
 ZERO_T:			equ	00h
@@ -30,7 +32,6 @@ REPL:
 INIT_ENV:
 EVAL:
 PRINTOBJ:
-READLIST:
 	ret
 
 
@@ -91,7 +92,7 @@ NUMBER:
 ; Name: 	CONS
 ; Purpose:	Makes a new Cons
 ;
-; Entry:	Register HL = First of pair
+; Entry:	Register IX = First of pair
 ; 		Register DE = Second of pair
 ; 		
 ; Exit:		Register IX = Object
@@ -99,14 +100,18 @@ NUMBER:
 ; Registers used:      HL
 ; ***********************************************************
 CONS:
+	push hl
+	ld b, ixu
+	ld c, ixl
 	call MALLOC
-	ret z
+	jr z, .done
 
-	ld (ix), l
-	ld (ix+1), h
+	ld (ix), c
+	ld (ix+1), b
 	ld (ix+2), e
 	ld (ix+3), d
-
+.done:
+	pop hl
 	ret
 
 
@@ -220,11 +225,9 @@ BUILTIN:
 	ret
 
 
-
-
 ; ***********************************************************
-; Title:	Read input
-; Name: 	READ
+; Title:	Read a full list
+; Name: 	READ_LIST
 ; Purpose:	Parses input and returns a list
 ;
 ; Entry:	None
@@ -237,7 +240,75 @@ BUILTIN:
 ;
 ; Registers used:      A, HL, BC
 ; ***********************************************************
+READ_LIST:
+	ld ix, 0	; Obj
+	ld iy, 0	; Head
+	call READ
+	ret c
+
+	; Check if EOF
+	ld a, ixu
+	or ixl
+	jr z, .eof
+
+	; Create new cons
+	ld de, 0
+	call CONS
+	ld b, ixu	; Tail
+	ld c, ixl
+	ld iyu, b
+	ld iyl, c
+	push iy		; Save head for later
+.loop:
+	call READ
+	ret c
+
+	ld a, ixu
+	or ixl
+	jr z, .eof
+
+	ld de, 0
+	call CONS
+	
+	ld b, ixu	; Tail
+	ld c, ixl
+
+	ld (iy+2), c
+	ld (iy+3), b
+
+	ld iyh, b
+	ld iyl, c
+	
+	jp .loop
+	
+	
+.eof:
+	call GETC
+	cp ')'
+	jp z, .done
+	scf
+.done:
+	pop ix
+	ret
+
+
+; ***********************************************************
+; Title:	Read input
+; Name: 	READ
+; Purpose:	Parses input and returns an object
+;
+; Entry:	None
+; 		
+; Exit:		If successful
+; 		   Register IX = Cons
+;		   Flag C = 0
+;		Else
+;		   Flag C = 1
+;
+; Registers used:      A, HL, BC
+; ***********************************************************
 READ:
+	ld ix, 0
 	call GETC
 	
 	_switch
@@ -286,12 +357,13 @@ READ:
 
 		cp '('		; Check if start of list
 		_case z
-			jp READLIST	; Return from READLIST
+			jp READ_LIST	; Return from READLIST
 		_endcase
 
 		cp ')'		; Error if end of list
 		_case z
-			scf
+			call UNGETC
+			ld ix, 0
 		      	ret
 		_endcase
 
@@ -342,23 +414,16 @@ READ:
 			call BUILTIN
 			ld a, h
 			or a
-			jr nz, .string_pack
+			jr nz, .string_pack	; If h!=0, no internal func.
 			ld a, l
 			cp LOOKUP_TABLE_SIZE
-			jr nc, .string_symbol
+			jr c, .string_symbol
 .string_pack:
 			; Convert to Radix40
 			; Check that string length is <= 3
 			ld de, BUFFER_BEGIN
-			ld a, (de)
-			or a
-			jr z, _READ_default
-			call ISALNUM
+			call PACK40
 			jr nc, _READ_default
-			
-			
-
-
 .string_symbol:
 			call NEW_SYMBOL
 
@@ -427,7 +492,7 @@ GLOBALENV:
 INPUT_CURSOR:
 	dw INPUT_BUFFER
 INPUT_BUFFER:
-	db "+1", 0
+	db "(symbols nil t lambda 1 2 3)", 0
 
 
 STR_FN_SYMBOLS:
