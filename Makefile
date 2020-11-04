@@ -11,6 +11,8 @@ HEX_FLAGS=-r \$$-\$$
 DEP=./tools/asmdep.py
 MAKEDEPEND=$(DEP) -t $@ $< $(DEP_DIR)/$*.d
 
+LST_PRG=./tools/lstfile.py
+
 PROGRAMMER=minipro
 #EEPROM=AT28C25
 EEPROM=CAT28C16A
@@ -44,7 +46,8 @@ $(PLS_DIR)/%.p: $(SRC_DIR)/%.s
 $(PLS_DIR)/%.p: $(SRC_DIR)/%.s $(DEP_DIR)/%.d | $(DEP_DIR)
 	$(dir_guard)
 	@$(MAKEDEPEND)
-	@mv $(SRC_DIR)/$*.lst $(LST_DIR)
+#	@mv $(SRC_DIR)/$*.lst $(LST_DIR)
+	@$(LST_PRG) $(SRC_DIR)/$*.lst $(LST_DIR)/$*.lst
 	$(ASM) $(ASMFLAGS) $(DEFINES) -o $(PLS_DIR)/$*.p $<
 
 $(BIN_DIR)/%.bin: $(PLS_DIR)/%.p
@@ -71,7 +74,7 @@ bios:	$(BIN_DIR)/bios.bin
 console: $(BIN_DIR)/console.bin
 	$(PROGRAMMER) -p $(EEPROM) -z -w build/console.bin
 
-lisp:	$(BIN_DIR)/lisp.bin $(HEX_DIR)/lisp.hex
+lisp:	$(BIN_DIR)/lisp.bin $(HEX_DIR)/lisp.hex $(Z80_DIR)/lisp.z80
 	@echo "Building lisp..."
 
 .PHONY: clean help

@@ -166,3 +166,91 @@ PACK40:
 	
 	
 	
+; ***********************************************************
+; Title:	Resolve symbol name
+; Name: 	SYMBOL_NAME
+; Purpose:	Resolves the symbol name if internal function,
+; 		converts number to the 3 letter string Radix 40
+;
+; Entry:	Register HL
+; 		
+; Exit:		Register DE = Buffer start
+;
+; Registers used:	HL
+; ***********************************************************
+SYMBOL_NAME:
+	; Check if built in function
+	ld a, h
+	or a
+	jr nz, .unpack
+	ld a, l
+	cp LOOKUP_TABLE_SIZE
+	jr nc, .unpack
+
+	; It's a built in function.
+	ld a, l
+	add a, a	; Multiply with 4
+	add a, a	; Since table entry is 4 bytes
+	add a, LOOKUP_TABLE_BEGIN & 0ffh
+	ld l, a
+	adc a, LOOKUP_TABLE_BEGIN / 100h
+	sub l
+	ld h, a
+	ld e, (hl)
+	inc hl
+	ld d, (hl)
+	ret
+	
+.unpack:
+	ld de, BUFFER_BEGIN
+	
+	ld c, 40; Divide by 40
+	call DIV_HL_C ; HL = Quotient, A=Remainer
+	call .from_radix
+
+	ld (de), a
+	inc de
+
+	call DIV_HL_C
+	call .from_radix
+
+	ld (de), a
+	inc de
+
+	call DIV_HL_C
+	call .from_radix
+
+	ld (de), a
+	inc de
+
+	xor a
+	ld (de), a
+
+	ret
+
+
+.from_radix:
+	or a
+	ret z
+
+	cp 27
+	jr nc, .signs
+	add a, 'a'-1
+	ret
+
+.signs:
+	cp 30
+	jr nc, .numbers
+	xor a
+	ret
+.numbers:
+	cp 40
+	jr nc, .end
+	add a, '0'-30
+	ret
+.end:
+	xor a
+	ret
+	
+	
+	

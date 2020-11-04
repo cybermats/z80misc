@@ -24,7 +24,7 @@ SETUP:
 REPL:
 	call READ
 	call EVAL
-	call PRINTOBJ
+	call WRITE
 	halt
 	jr REPL
 	
@@ -35,6 +35,10 @@ PRINTOBJ:
 	ret
 
 
+INPUT_CURSOR:
+	dw INPUT_BUFFER
+INPUT_BUFFER:
+	db "(symbols nil t lambda 1 2 3)", 0
 
 
 
@@ -129,6 +133,7 @@ CONS:
 ; Registers used:      IX, BC, A, DE
 ; ***********************************************************
 NEW_SYMBOL:
+	; TODO: Only check the active cells. Not everything.
 
 	; Check if something already exists.
 	ld ix, WORKSPACE_BEGIN
@@ -138,7 +143,7 @@ NEW_SYMBOL:
 .loop:
 	ld a, (ix)
 	cp SYMBOL_T
-	jr nz, .inc
+	jp nz, .inc
 
 	ld a, (ix+1)
 	cp 0
@@ -159,7 +164,7 @@ NEW_SYMBOL:
 	dec bc
 	ld a, b
 	or c
-	jr nz, .loop
+	jp nz, .loop
 
 	; It doesn't exist. Create new.
 	jp SYMBOL
@@ -440,6 +445,93 @@ _READ_default:
 
 
 ; ***********************************************************
+; Title:	Write object to output
+; Name: 	WRITE
+; Purpose:	Outputs the object to stdout
+;
+; Entry:	Register IX = Object
+; 		
+; Exit:		None
+;
+; Registers used:      
+; ***********************************************************
+WRITE:
+	; Check nil
+	ld a, ixu
+	or ixl
+	jr nz, .check_types
+	ld a, '('
+	call PUTC
+	ld a, ')'
+	call PUTC
+	ret
+	
+.check_types:
+	ld a, (IX+1)	; Check MSB. If non-zero
+	or a  		; it is a PAIR
+	jr nz, .pair
+	ld a, (IX)	; Check which type
+	cp SYMBOL_T
+	jr z, .symbol
+	cp NUMBER_T
+	jr z, .number
+
+.pair:
+	ld a, '('
+	call PUTC
+	push ix
+	ld b, (ix+1)
+	ld c, (ix)
+	ld ixh, b
+	ld ixl, c
+	call WRITE
+	ld a, ' '
+	call PUTC
+	pop ix
+	ld b, (ix+3)
+	ld c, (ix+2)
+	ld ixh, b
+	ld ixl, c
+	ld a, '.'
+	call PUTC
+	ld a, ' '
+	call PUTC
+	call WRITE
+	ld a, ')'
+	call PUTC
+	ret
+
+.symbol:
+	ld l, (ix+2)
+	ld h, (ix+3)
+	call SYMBOL_NAME
+.s_loop:
+	ld a, (de)
+	or a
+	ret z
+	call PUTC
+	inc de
+	jr .s_loop
+
+.number:
+	ld l, (ix+2)
+	ld h, (ix+3)
+	ld bc, 16
+	ld de, BUFFER_BEGIN
+	call ITOA
+	ld de, BUFFER_BEGIN
+.n_loop:
+	ld a, (de)
+	or a
+	ret z
+	call PUTC
+	inc de
+	jr .n_loop
+	
+	
+
+
+; ***********************************************************
 ; Title:	Get next character from input
 ; Name: 	GETC
 ; Purpose:	Reads the next character from the input
@@ -471,9 +563,16 @@ UNGETC:
 	pop hl
 	ret
 
+
+PUTC:
+	out (00), a
+	ret
+
+
 	include "utils/char_helper.s"
 	include "lisp/memory.s"
 	include "utils/stdlib.s"
+	include "utils/math.s"
 
 
 
@@ -489,10 +588,6 @@ GLOBALENV:
 	dw 0h
 
 
-INPUT_CURSOR:
-	dw INPUT_BUFFER
-INPUT_BUFFER:
-	db "(symbols nil t lambda 1 2 3)", 0
 
 
 STR_FN_SYMBOLS:

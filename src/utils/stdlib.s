@@ -104,4 +104,87 @@ NEG:
 	ld l, a
 	inc hl
 	ret
+
+
+; ***********************************************************
+; Title:	Unsigned Integer to ASCII
+; Name: 	UTOA
+; Purpose:	Converts a number represented in Ascii
+;
+; Entry:	Register HL = Uint num
+; 		Register BC = int radix [2,36]
+;		Register DE = Buffer
+; 		
+; Exit:		Register DE = Address of terminating 0
+;		Carry reset no errors
+;
+; Registers used:
+; ***********************************************************
+UTOA:
+	xor a
+	push af		; End of digits marked by carry reset
+.compute_lp:
+	call DIV_HL_C
+	call .num2char
+	scf
+	push af		; Digit onto stack
+
+	ld a, h
+	or l
+	jr nz, .compute_lp
+
+.write_lp:
+	pop af
+	ld (de), a
+	inc de
+
+	jr c, .write_lp
+
+	; Last write above was NUL
+
+	dec de
+	ret
+
+.num2char:
+	cp 10
+	jr nc, .alpha
+
+	add a, '0'
+	ret
+
+.alpha:
+	add a, 'A'-10
+	ret
 	
+	
+
+
+; ***********************************************************
+; Title:	Signed Integer to ASCII
+; Name: 	ITOA
+; Purpose:	Converts a number represented in Ascii
+;
+; Entry:	Register HL = int num
+; 		Register BC = radix
+;		Register DE = Buffer
+; 		
+; Exit:		Register HL = Address of terminating 0
+;
+; Registers used: AF, BC, DE, HL, IX
+; ***********************************************************
+ITOA:
+	ld a, c
+	cp 10
+	jp nz, UTOA
+
+	bit 7, h	; Number positive?
+	jp z, UTOA
+
+	call NEG
+
+	ld a, '-'
+	ld (de), a
+	inc de
+
+	ld a, 10
+	jp UTOA
