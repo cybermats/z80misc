@@ -48,9 +48,9 @@ $(PLS_DIR)/%.p: $(SRC_DIR)/%.s
 $(PLS_DIR)/%.p: $(SRC_DIR)/%.s $(DEP_DIR)/%.d | $(DEP_DIR)
 	$(dir_guard)
 	@$(MAKEDEPEND)
-#	@$(LST_PRG) $(SRC_DIR)/$*.lst $(LST_DIR)/$*.lst
 	$(ASM) $(ASMFLAGS) $(DEFINES) -o $(PLS_DIR)/$*.p \
 	-olist $(LST_DIR)/$*.lst  $<
+	@$(LST_PRG) $(LST_DIR)/$*.lst $(LST_DIR)/$*.tamlst
 
 $(BIN_DIR)/%.bin: $(PLS_DIR)/%.p
 	@echo Building $@
