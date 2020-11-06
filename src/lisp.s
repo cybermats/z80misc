@@ -19,8 +19,8 @@ PAIR_T:			equ	06h
 BEGIN:
 	ld sp, 0000h
 SETUP:
-	call INIT_WORKSPACE
 	call INIT_ENV
+	call INIT_WORKSPACE
 REPL:
 	call READ
 	call EVAL
@@ -30,6 +30,19 @@ REPL:
 	
 
 INIT_ENV:
+	xor a
+	ld h, a
+	ld l, a
+
+	ld (FREESPACE), hl
+	ld (FREELIST), hl
+	ld (GLOBALENV), hl
+
+	ld hl, INPUT_BUFFER
+	ld (INPUT_CURSOR), hl
+	ret		
+
+
 EVAL:
 PRINTOBJ:
 	ret
@@ -136,9 +149,24 @@ NEW_SYMBOL:
 	; TODO: Only check the active cells. Not everything.
 
 	; Check if something already exists.
-	ld ix, WORKSPACE_BEGIN
-	ld bc, (WORKSPACE_END - WORKSPACE_BEGIN) / 4
+	ex hl, de
+	ld hl, (FREELIST)
+	ld bc, (-WORKSPACE_BEGIN)& 0ffffh
+	add hl, bc
+	ld b, h
+	ld c, l
+	ex hl, de
+	ld a, b
+	or c
+	jp z, SYMBOL
+	
+	srl b
+	rr c
+	srl b
+	rr c
 	ld de, 4
+
+	ld ix, WORKSPACE_BEGIN
 
 .loop:
 	ld a, (ix)
@@ -598,13 +626,71 @@ STR_FN_T:
 	db "t", 0
 STR_FN_LAMBDA:
 	db "lambda", 0
+STR_FN_QUOTE:
+	db "quote", 0
+STR_FN_DEFUN:
+	db "defun", 0
+STR_FN_DEFVAR:
+	db "defvar", 0
+STR_FN_SETQ:
+	db "setq", 0
+STR_FN_IF:
+	db "if", 0
+STR_FN_NOT:
+	db "not", 0
+STR_FN_NULLFN:
+	db "null", 0
+STR_FN_CONS:
+	db "cons", 0
+STR_FN_ATOM:
+	db "atom", 0
+STR_FN_LISTP:
+	db "listp", 0
+STR_FN_CONSP:
+	db "consp", 0
+STR_FN_SYMBOLP:
+	db "symbolp", 0
+STR_FN_EQ:
+	db "eq", 0
+STR_FN_CAR:
+	db "car", 0
+STR_FN_CDR:
+	db "cdr", 0
+STR_FN_EVAL:
+	db "eval", 0
+STR_FN_GLOBALS:
+	db "globals", 0
+STR_FN_LOCALS:
+	db "locals", 0
 
+
+
+ 
 
 LOOKUP_TABLE_BEGIN:
 	dw STR_FN_SYMBOLS, 0
 	dw STR_FN_NIL, 0
 	dw STR_FN_T, 0
 	dw STR_FN_LAMBDA, 0
+	dw STR_FN_QUOTE, 0
+	dw STR_FN_DEFUN, 0
+	dw STR_FN_DEFVAR, 0
+	dw STR_FN_SETQ, 0
+	dw STR_FN_IF, 0
+	dw STR_FN_NOT, 0
+	dw STR_FN_NULLFN, 0
+	dw STR_FN_CONS, 0
+	dw STR_FN_ATOM, 0
+	dw STR_FN_LISTP, 0
+	dw STR_FN_CONSP, 0
+	dw STR_FN_SYMBOLP, 0
+	dw STR_FN_EQ, 0
+	dw STR_FN_CAR, 0
+	dw STR_FN_CDR, 0
+	dw STR_FN_EVAL, 0
+	dw STR_FN_GLOBALS, 0
+	dw STR_FN_LOCALS, 0
+	
 LOOKUP_TABLE_END:
 	dw 0		  ; End of table
 LOOKUP_TABLE_SIZE:   equ	(LOOKUP_TABLE_END - LOOKUP_TABLE_BEGIN) / 4
