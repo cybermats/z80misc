@@ -19,15 +19,16 @@ INIT_WORKSPACE:
 	ld bc, (WORKSPACE_END - WORKSPACE_BEGIN) / 4
 	ld (FREESPACE), bc
 	ld de, 0
+	xor a
 .loop:
 	dec hl
 	ld (hl), d
 	dec hl
 	ld (hl), e
 	dec hl
-	ld (hl), 0
+	ld (hl), a
 	dec hl
-	ld (hl), 0
+	ld (hl), a
 	ld d, h
 	ld e, l
 	dec bc
