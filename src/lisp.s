@@ -25,7 +25,16 @@ SETUP:
 REPL:
 	call READ
 	call EVAL
+	push ix
 	call WRITE
+	ld a, '\n'
+	call PUTC
+	pop iy
+	ld hl, 0
+	call VALUE
+	call WRITE
+	ld a, '\n'
+	call PUTC
 REPL_ERROR:
 	halt
 	jr REPL
@@ -118,8 +127,24 @@ VALUE:
 	
 	ld d, (ix+1)	; car(car(env)) 
 	ld e, (ix+0)
+
+	ex hl, de
+	ld a, (hl)	; Check type
+	cp SYMBOL_T
+	jr nz, .error	; Malformed. Should be of type SYMBOL
+	inc hl
+	ld a, (hl)
+	or a
+	jr nz, .error	; Malformed. This should be null.
+	inc hl 		; It's all good. Get the actual value and compare
+	ld a, (hl)
+	inc hl
+	ld h, (hl)
+	ld l, a
+	
 	sbc hl, de	; Compare name of value
 	add hl, de
+	ex hl, de
 	jr z, .done
 
 .inc:
@@ -130,6 +155,9 @@ VALUE:
 	jp .loop
 .done:
 	ret
+.error:
+	ld a, 5
+	jp ERROR
 
 ; ***********************************************************
 ; Title:	Create symbol
