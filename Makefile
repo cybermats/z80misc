@@ -37,6 +37,8 @@ Z80_FILES = $(SRC_FILES:$(SRC_DIR)/%.s=$(Z80_DIR)/%.z80)
 
 dir_guard=@mkdir -p $(@D)
 
+Z80_HEADER="Z80ASM\x1a\x0a\0\0"
+
 all: $(BIN_FILES)
 
 what:
@@ -46,9 +48,9 @@ $(PLS_DIR)/%.p: $(SRC_DIR)/%.s
 $(PLS_DIR)/%.p: $(SRC_DIR)/%.s $(DEP_DIR)/%.d | $(DEP_DIR)
 	$(dir_guard)
 	@$(MAKEDEPEND)
-#	@mv $(SRC_DIR)/$*.lst $(LST_DIR)
-	@$(LST_PRG) $(SRC_DIR)/$*.lst $(LST_DIR)/$*.lst
-	$(ASM) $(ASMFLAGS) $(DEFINES) -o $(PLS_DIR)/$*.p $<
+#	@$(LST_PRG) $(SRC_DIR)/$*.lst $(LST_DIR)/$*.lst
+	$(ASM) $(ASMFLAGS) $(DEFINES) -o $(PLS_DIR)/$*.p \
+	-olist $(LST_DIR)/$*.lst  $<
 
 $(BIN_DIR)/%.bin: $(PLS_DIR)/%.p
 	@echo Building $@
@@ -63,7 +65,7 @@ $(BIN_DIR)/%.hex: $(PLS_DIR)/%.p
 $(Z80_DIR)/%.z80: $(BIN_DIR)/%.bin
 	@echo Building $@
 	$(dir_guard)
-	@printf "Z80ASM\x1a\xa\0\0" | cat - $< > $@
+	@env printf $(Z80_HEADER)  | cat - $< > $@
 
 #seg_test: seg_test.bin
 #	$(PROGRAMMER) -p $(EEPROM) -w seg_test.bin
