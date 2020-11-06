@@ -6,6 +6,7 @@
 WORKSPACE_BEGIN:	equ	09000h
 WORKSPACE_END:		equ	09100h
 ;WORKSPACE_END:		equ	0a000h
+STACK_BEGIN:		equ 	0000h
 
 ZERO_T:			equ	00h
 SYMBOL_T:			equ	02h
@@ -17,7 +18,7 @@ PAIR_T:			equ	06h
 
 ;	org 00h
 BEGIN:
-	ld sp, 0000h
+	ld sp, STACK_BEGIN
 SETUP:
 	call INIT_ENV
 	call INIT_WORKSPACE
@@ -25,6 +26,7 @@ REPL:
 	call READ
 	call EVAL
 	call WRITE
+REPL_ERROR:
 	halt
 	jr REPL
 	
@@ -51,12 +53,83 @@ PRINTOBJ:
 INPUT_CURSOR:
 	dw INPUT_BUFFER
 INPUT_BUFFER:
-	db "(symbols nil t lambda 1 2 3)", 0
+;	db "(symbols nil t lambda 1 2 3)", 0
+	db "((symbols t) (lambda 1))", 0, 0, 0, 0
 
 
 
+; ***********************************************************
+; Title:	Error handling
+; Name: 	ERROR
+; Purpose:	Writes out the error code and returns to REPL
+;
+; Entry:	Register A = Error code
+; 		
+; Exit:		None
+;
+; Registers used:	None
+; ***********************************************************
+ERROR:
+	ld de, BUFFER_BEGIN
+	ld bc, 16
+	ld l, a
+	xor a
+	ld h, a
+	call ITOA
+
+	ld sp, STACK_BEGIN
+	ld de, BUFFER_BEGIN
+.loop:
+	ld a, (de)
+	inc de
+	or a
+	jp z, REPL_ERROR
+	call PUTC
+	jr .loop
 
 
+; ***********************************************************
+; Title:	Get value for symbol
+; Name: 	VALUE
+; Purpose:	Resolve the value for a symbol from a
+; 		given environment
+;
+; Entry:	Register HL = Symbol Name
+; 		Register IY = Environment
+; 		
+; Exit:		Register IX = Object
+;
+; Registers used:	None
+; ***********************************************************
+VALUE:
+	ld ix, 0
+.loop:
+	ld a, iyl	; Check empty env
+	or iyh
+	jr z, .done
+	ld d, (iy+1)	; Car(env)	
+	ld e, (iy+0)
+	ld a, d		; Check if car(env) == null
+	or e
+	jr z, .inc
+	
+	ld ixh, d
+	ld ixl, e
+	
+	ld d, (ix+1)	; car(car(env)) 
+	ld e, (ix+0)
+	sbc hl, de	; Compare name of value
+	add hl, de
+	jr z, .done
+
+.inc:
+	ld d, (iy+3)	; env = cdr(env)
+	ld e, (iy+2)
+	ld iyh, d
+	ld iyl, e
+	jp .loop
+.done:
+	ret
 
 ; ***********************************************************
 ; Title:	Create symbol
@@ -90,7 +163,7 @@ SYMBOL:
 ; 		
 ; Exit:		Register IX = Object
 ;
-; Registers used:	HL
+; Registers used:	AF
 ; ***********************************************************
 NUMBER:
 	call MALLOC
@@ -114,10 +187,11 @@ NUMBER:
 ; 		
 ; Exit:		Register IX = Object
 ;
-; Registers used:      HL
+; Registers used:      DE, IX
 ; ***********************************************************
 CONS:
 	push hl
+	push bc
 	ld b, ixu
 	ld c, ixl
 	call MALLOC
@@ -128,6 +202,7 @@ CONS:
 	ld (ix+2), e
 	ld (ix+3), d
 .done:
+	pop bc
 	pop hl
 	ret
 
@@ -265,24 +340,20 @@ BUILTIN:
 ;
 ; Entry:	None
 ; 		
-; Exit:		If successful
-; 		   Register IX = Cons
-;		   Flag C = 0
-;		Else
-;		   Flag C = 1
+; Exit:		Register IX = Cons
 ;
 ; Registers used:      A, HL, BC
 ; ***********************************************************
 READ_LIST:
-	ld ix, 0	; Obj
 	ld iy, 0	; Head
+	push iy
 	call READ
-	ret c
+	pop iy
 
 	; Check if EOF
 	ld a, ixu
 	or ixl
-	jr z, .eof
+	jr z, .eof1
 
 	; Create new cons
 	ld de, 0
@@ -293,12 +364,13 @@ READ_LIST:
 	ld iyl, c
 	push iy		; Save head for later
 .loop:
+	push iy
 	call READ
-	ret c
+	pop iy
 
 	ld a, ixu
 	or ixl
-	jr z, .eof
+	jr z, .eof2
 
 	ld de, 0
 	call CONS
@@ -314,12 +386,14 @@ READ_LIST:
 	
 	jp .loop
 	
-	
-.eof:
+.eof2:
+	pop ix
+.eof1:
 	call GETC
 	cp ')'
-	jp z, .done
-	scf
+	ret z
+	ld a, 4
+	jp ERROR
 .done:
 	pop ix
 	ret
@@ -332,13 +406,9 @@ READ_LIST:
 ;
 ; Entry:	None
 ; 		
-; Exit:		If successful
-; 		   Register IX = Cons
-;		   Flag C = 0
-;		Else
-;		   Flag C = 1
+; Exit:		Register IX = Cons
 ;
-; Registers used:      A, HL, BC
+; Registers used:      AF, HL, BC, DE, IX
 ; ***********************************************************
 READ:
 	ld ix, 0
@@ -369,8 +439,10 @@ READ:
 			dec bc
 			ld a, b
 			or c
-			jp z, _READ_default
-	
+			jp nz, .digit_cont
+			ld a, 1
+			jp ERROR
+.digit_cont:	
 			call GETC
 			call ISDIGIT
 			jr c, .digit_loop
@@ -382,18 +454,15 @@ READ:
 			ld de, BUFFER_BEGIN
 	
 			call ATOI
-			call NUMBER
-
-			or a		; Reset flags
-			ret
+			jp NUMBER	; Return from Number
 		_endcase
 
-		cp '('		; Check if start of list
+		cp '('			; Check if start of list
 		_case z
 			jp READ_LIST	; Return from READLIST
 		_endcase
 
-		cp ')'		; Error if end of list
+		cp ')'			; Error if end of list
 		_case z
 			call UNGETC
 			ld ix, 0
@@ -433,8 +502,10 @@ READ:
 			dec bc
 			ld a, b
 			or c
-			jr z, _READ_default
-
+			jr nz, .string_cont
+			ld a, 2
+			jp ERROR
+.string_cont:
 			call GETC
 			call ISALNUM
 			jr c, .string_loop
@@ -456,19 +527,17 @@ READ:
 			; Check that string length is <= 3
 			ld de, BUFFER_BEGIN
 			call PACK40
-			jr nc, _READ_default
+			jr c, .string_symbol
+			ld a, 3
+			jp ERROR
 .string_symbol:
-			call NEW_SYMBOL
-
-			or a
-			ret
+			jp NEW_SYMBOL
 		_endcase
 
 _READ_default:
 		; Default
-		scf		; Unknown string. Return error
-		ret
-
+		ld a, 4
+		jp ERROR
 	_endswitch
 
 
@@ -614,7 +683,8 @@ FREELIST:
 	dw 0h
 GLOBALENV:
 	dw 0h
-
+GC_ROOT:
+	dw 0h
 
 
 

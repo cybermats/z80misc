@@ -52,7 +52,7 @@ INIT_WORKSPACE:
 ;		Else
 ;		   Flag Z = 1
 ;
-; Registers used:      A, HL
+; Registers used:      A
 ; ***********************************************************
 MALLOC:
 	push hl

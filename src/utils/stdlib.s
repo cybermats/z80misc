@@ -9,7 +9,7 @@
 ; 		Register HL = Signed result
 ;		Carry set on overflow
 ;
-; Registers used:
+; Registers used: AF
 ; ***********************************************************
 ATOI:
 	ld a, (de)
@@ -37,7 +37,7 @@ ATOI:
 ; 		Register HL = Unsigned result
 ;		Carry set on unsigned overflow
 ;
-; Registers used:
+; Registers used: AF
 ; ***********************************************************
 ATOU:
 	ld hl, 0

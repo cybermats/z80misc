@@ -62,9 +62,9 @@ ISLETTER:
 ; Registers used:	None
 ; ***********************************************************
 ISALNUM:
-	call ISDIGIT
+	call ISLETTER
 	ret c
-	jp ISLETTER
+	jp ISDIGIT
 
 
 
