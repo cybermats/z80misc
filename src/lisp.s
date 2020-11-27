@@ -13,10 +13,7 @@ SYMBOL_T:			equ	02h
 NUMBER_T:			equ	04h
 PAIR_T:			equ	06h
 
-
-
-
-;	org 00h
+	org 00h
 BEGIN:
 	ld sp, STACK_BEGIN
 SETUP:
@@ -35,6 +32,9 @@ REPL:
 	call WRITE
 	ld a, '\n'
 	call PUTC
+
+
+
 REPL_ERROR:
 	halt
 	jr REPL
@@ -54,7 +54,6 @@ INIT_ENV:
 	ret		
 
 
-EVAL:
 PRINTOBJ:
 	ret
 
@@ -64,6 +63,8 @@ INPUT_CURSOR:
 INPUT_BUFFER:
 ;	db "(symbols nil t lambda 1 2 3)", 0
 	db "((symbols t) (lambda 1))", 0, 0, 0, 0
+INPUT_BUFFER2:
+	db "symbols", 0, 0
 
 
 
@@ -96,6 +97,73 @@ ERROR:
 	call PUTC
 	jr .loop
 
+
+; ***********************************************************
+; Title:	Evaluate s-expression
+; Name: 	EVAL
+; Purpose:	Evaluate the s-expression 
+; 		given an environment.
+;
+; Entry:	Register IX = S-expression
+; 		Register IY = Environment
+; 		
+; Exit:		Register IX = Evaluated object
+;
+; Registers used:	All
+; ***********************************************************
+EVAL:
+	; Check if NIL
+	push ix
+	ld a, ixu
+	or ixl
+	jr .ret_nil
+
+	; Check if symbol
+	call SYMBOLP
+	jr nc, .check_list
+	
+	ld h, (ix+3)	; Get symbol name
+	ld l, (ix+2)
+
+	call VALUE
+
+	ld a, ixu	; Check if symbol is in env
+	or ixl
+	jp z, .ret_form	; It's not, just return the form.
+
+	; cdr
+	ld d, (ix+3)	; It is, fetch the value.
+	ld e, (ix+2)
+
+	ld ixh, d
+	ld ixl, e
+	ret
+
+.check_list:
+	; Check if lambda
+	ld h, (ix+1)	; car(list)
+	ld l, (ix)
+
+	ld a, (hl)	; Check type of car(list)
+	cp SYMBOL_T
+	jr nz, .eval_func1
+	inc hl
+	ld a, (hl)
+	or a
+	jr nz, .eval_func2
+	
+
+.eval_func1:
+	
+.eval_func2:
+
+.ret_nil:
+	pop ix		; Just drop the stack
+	ld ix, 0
+	ret
+.ret_form:
+	pop ix
+	ret
 
 ; ***********************************************************
 ; Title:	Get value for symbol
@@ -181,6 +249,33 @@ SYMBOL:
 
 	ret
 	
+; ***********************************************************
+; Title:	Check if symbol
+; Name: 	SYMBOLP
+; Purpose:	Checks if an object is a symbol
+;
+; Entry:	Register IX = Object
+; 		
+; Exit:		If Object is a symbol
+; 		   Flag C = 0
+;		else
+;		   Flag C = 1
+;
+; Registers used:	None
+; ***********************************************************
+SYMBOLP:
+	ld a, (ix+1)
+	or a
+	jr nz, .not
+	ld a, (ix)
+	cp SYMBOL_T
+	jr nz, .not
+	or a
+	ret
+.not:
+	scf
+	ret
+	
 	
 ; ***********************************************************
 ; Title:	Create Number
@@ -203,6 +298,34 @@ NUMBER:
 	ld (ix+3), h
 
 	ret
+	
+; ***********************************************************
+; Title:	Check if number
+; Name: 	NUMBERP
+; Purpose:	Checks if an object is a number
+;
+; Entry:	Register IX = Object
+; 		
+; Exit:		If Object is a number
+; 		   Flag C = 0
+;		else
+;		   Flag C = 1
+;
+; Registers used:	None
+; ***********************************************************
+NUMBERP:
+	ld a, (ix+1)
+	or a
+	jr nz, .not
+	ld a, (ix)
+	cp NUMBER_T
+	jr nz, .not
+	or a
+	ret
+.not:
+	scf
+	ret
+	
 	
 	
 ; ***********************************************************
@@ -764,12 +887,18 @@ STR_FN_LOCALS:
 
 
  
-
+	align 0100h
+	
 LOOKUP_TABLE_BEGIN:
+	CMD_SYMBOLS: equ ($ - LOOKUP_TABLE_BEGIN) / 4
 	dw STR_FN_SYMBOLS, 0
+	CMD_NIL: equ ($ - LOOKUP_TABLE_BEGIN) / 4
 	dw STR_FN_NIL, 0
+	CMD_T: equ ($ - LOOKUP_TABLE_BEGIN) / 4
 	dw STR_FN_T, 0
+	CMD_LAMBDA: equ ($ - LOOKUP_TABLE_BEGIN) / 4
 	dw STR_FN_LAMBDA, 0
+	CMD_QUOTE: equ ($ - LOOKUP_TABLE_BEGIN) / 4
 	dw STR_FN_QUOTE, 0
 	dw STR_FN_DEFUN, 0
 	dw STR_FN_DEFVAR, 0
@@ -792,5 +921,14 @@ LOOKUP_TABLE_BEGIN:
 LOOKUP_TABLE_END:
 	dw 0		  ; End of table
 LOOKUP_TABLE_SIZE:   equ	(LOOKUP_TABLE_END - LOOKUP_TABLE_BEGIN) / 4
+
+
+ERROR_MSG_BEGIN:
+ERROR_MSG_PTR:	set $
+
+	align 0100h
+	
+ERROR_TBL_BEGIN:
+ERROR_TBL_PTR:	set $
 
 	end
