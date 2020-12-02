@@ -1,177 +1,128 @@
+	cpu Z80UNDOC
 	org 0
 	phase 8000h
 MAIN:
-	; Initialize the sd card
-	; 1. Let it cycle through at least 74 clks
-	;    with MOSI and CS HIGH.
-
-	ld a, 0ffh		; MOSI High
-	out (SPIDATA), a
-	ld b, 0ah		; Loop 10 times
-	xor a			; No CS
-.init_loop:
-	out (SPICTRL1), a	; 
-	djnz .init_loop		; 10 x 8 is 80 cycles.
-
-
-	; 2. Send CMD0
-	ld hl, CMD0
-	call SEND_CMD
+	ld hl, MSG_INIT
+	call PRINT
 	
-	call WAIT_R1
-;	jp c, .fail
-	
-	; 3. Send CMD8
-	ld hl, CMD8
-	call SEND_CMD
-	
-	call WAIT_R7
+	call SPI_INIT_SD
 	jp c, .fail
 
-	; Check illegal
-	cp a, 00000101b
-	jp z, .ver_1x
 
-	and 0feh
-	jp nz, .fail
-
-.ver_2:
-	; Check voltage
-	ld a, 1
-	cp d
-	jp nz, .unusable
-
-	; Check Pattern
-	ld a, 0aah
-	cp e
-	jp nz, .unusable
-
-.cmd41:
-	; Send ACMD41
-	ld d, 0
-.cmd41_loop:
-	ld hl, CMD55
-	call SEND_CMD
-
-	call WAIT_R1
-	jp c, .fail
-
-	ld hl, ACMD41
-	call SEND_CMD
-
-	call WAIT_R1
-	jp c, .fail
-
-	cp 5h		; Check if command understood
-	jr z, .cmd58	; If not, try with CMD1
-
-	or a   		; Check if in idle state
-	jr z, .cmd58	; No, move on.
-	dec d
-	jr nz, .cmd41_loop
-	jp .fail
-
-.cmd1:
-	; CMD1
-	ld d, 0
-.cmd1_loop:
-	ld hl, CMD1
-	call SEND_CMD
-	
-	call WAIT_R1
-	jp c, .fail
-
-	cp 1		; Check if in idle state
-	jr nz, .cmd58
-;	dec d
-;	jr nz, .cmd1_loop	; Yes, then try again
-	jr .cmd1_loop
-	jp .fail
-
-.cmd58:
-	; Send CMD58, to check CCS
-	ld hl, CMD58
-	call SEND_CMD
-
-	call WAIT_R3
-	jr c, .fail
-
-	; Check voltage
-	inc l		; l should be ff
-	jp nz, .fail
-
+.run:
 	; Start reading
-	ld hl, CMD17
-	call SEND_CMD
-
-	call WAIT_R1
-	jr c, .fail
-	cp 5h		; Check if command understood
-	jr z, .fail	
-
-	ld hl, MSG_READ
-	call PRINT
-
-	; Read transfer token
-	call WAIT_TOKEN
+	ld hl, DISK_BUFFER	; Destination address
+	ld bc, 0000h
+	ld de, 0000h	; Source Block
+	call SPI_READ_BLOCK
 	jp c, .fail
-	
-	; Prepare for block reading
-	ld hl, 9000h
-	ld b, 0
-	ld d, 2
-	ld c, SPIDATA
 
-.read:	
-	ld a, 1
-	out (SPICTRL1), a
-	ini
-	jp nz, .read
-	dec d
-	jr nz, .read
+	call FAT_READ_MBR
+	jp c, .fail
 
-	; Read CRC
-	out (SPICTRL1), a
-	ini
-	out (SPICTRL1), a
-	ini
-	
+	ld hl, DISK_BUFFER	; Start of MBR
+	call SPI_READ_BLOCK
+	jp c, .fail
 
-	
+	call FAT_READ_VBR
+	jp c, .fail
 
-	push af
+	; Load root sector
+	ld hl, DISK_BUFFER
+	ld de, (VBR_ROOT_SECT)
+	ld bc, (VBR_ROOT_SECT + 2)
+	call SPI_READ_BLOCK
+
+	; Loop through root entry
+	ld ix, DISK_BUFFER
+.dir_loop:
+	; Check if volume label
+	ld a, (ix + FAT_FILE_ATT_OFFSET)
+	cp FAT_FILE_ATTR_VOL
+	jr z, .dir_cont
+	; Check if long name
+	cp FAT_FILE_ATTR_LNG
+	jr z, .dir_cont
+	; Check if deleted file
+	ld a, (ix + FAT_FILE_NAME_OFFSET)
+	cp FAT_FILE_NAME_DEL
+	jr z, .dir_cont
+	; Check if dot-entry
+	cp FAT_FILE_NAME_DOT
+	jr z, .dir_cont
+	; Check if at end
+	or a
+	jr z, .dir_done
+.dir_do:
+	ld a, ixh
+	ld h, a
+	ld a, ixl
+	ld l, a
+	ld b, 8
+	call PRINT_N
 	push hl
-	push de
-	ld hl, MSG_SUCC
+	
+	ld hl, .space_str
 	call PRINT
-	pop de
+
 	pop hl
-	pop af
+	ld b, 3
+	call PRINT_N
 
+	ld a, (ix + FAT_FILE_ATT_OFFSET)
+	and FAT_FILE_ATTR_DIR
+	jr z, .dir_file
 
+	ld hl, .dir_str
+	call PRINT
+.dir_file:
+	ld hl, .nl_str
+	call PRINT
 
+.dir_cont:
+	ld bc, 32
+	add ix, bc
+	jr .dir_loop
+.dir_done:
+	
 
-
-	ret
-
-.unusable:
-	ld hl, MSG_UNUSE
+	ld hl, MSG_DONE
 	call PRINT
 	ret
 
-.ver_1x:
+.space_str:
+	db " ", 0
+.dir_str:
+	db "<DIR>", 0
+.nl_str:
+	db "\n", 0
+.init_str:
+	db "init ",0
+.mbr_str:
+	db "mbr ", 0
+.vbr_str:
+	db "vbr ", 0
+.dte_str:
+	db "dte ", 0
+
 .fail:
 	ld hl, MSG_FAIL
 	add a, (hl)
 	ld (hl), a
 	call PRINT
+	ld hl, MSG_FAIL
+	ld (hl), '0'
 	ret
 
-
 PRINT:
+	push hl
+	push bc
+	push de
+	push af
+.loop:
 	ld a, (hl)
 	or a
-	ret z
+	jr z, .done
 
 	ld e, a
 	ld c, COUT
@@ -179,185 +130,80 @@ PRINT:
 	call BIOS
 	pop hl
 	inc hl
-	jr PRINT
-
-
-SEND_CMD:
-	ld b, 12 ; Double since both outi and djnz decs.
-	ld c, SPIDATA
-	ld a, 0ffh		; Send one FF before command
-	out (SPIDATA), a
-	ld a, 01		; Set CS
-	out (SPICTRL1), a
-.init_loop2:
-	outi			; Send CMD
-	out (SPICTRL1), a
-	djnz .init_loop2
+	jr .loop
+.done:
+	pop af
+	pop de
+	pop bc
+	pop hl
 	ret
 
 
-WAIT_TOKEN:
-	ld b, 16
-	ld a, 0ffh
-	out (SPIDATA), a
+PRINT_N:
+
 .loop:
-	ld a, 1
-	out (SPICTRL1), a
-	
-	call READ_SPI
-	cp 20h
-	jr c, .error_token
-	cp 0ffh
-	jr c, .data_token
-	djnz .loop
-
-.data_token:
-	or a
+	ld e, (hl)
+	ld c, COUT
+	push hl
+	push bc
+	call BIOS
+	pop bc
+	pop hl
+	inc hl
+	dec b
+	jr nz, .loop
+.done:
 	ret
 
-.error_token:
-	scf
-	ret
-
-
-; Carry = 0 if successful
-WAIT_R1:
-	ld b, 16	; Number of tries
-	ld a, 0ffh	; Load FF into SPI
-	out (SPIDATA), a
-.loop:
-	call READ_SPI
-	or a		; Reset Carry
-	bit 7, a	; Check if successful
-	ret z  		; Return if success
-
-	ld a, 1		; Set Card Select
-	out (SPICTRL1), a
-	djnz .loop
-
-.failure:
-	scf		; Set Carry
-	ret
-
-
-; Carry = 0 if successful, Result in HL + DE, token in A
-WAIT_R3:
-WAIT_R7:
-	ld b, 16
-	ld a, 0ffh
-	out (SPIDATA), a
-.loop:
-	call READ_SPI
-	ld c, a
-	bit 7, a
-	jr z, .payload
-	ld a, 1
-	out (SPICTRL1), a
-	djnz .loop
-.failure:
-	scf
-	ret
-.payload:
-	ld a, 1
-	out (SPICTRL1), a
-	call READ_SPI
-	ld h, a
-
-	ld a, 1
-	out (SPICTRL1), a
-	call READ_SPI
-	ld l, a
-
-	ld a, 1
-	out (SPICTRL1), a
-	call READ_SPI
-	ld d, a
-
-	ld a, 1
-	out (SPICTRL1), a
-	call READ_SPI
-	ld e, a
-
-	ld a, c
-	or a
-	ret
-
-
-READ_SPI:
-	in a, (SPIDATA)
-	ret	
-
-CMD0:
-	db 01000000b ; 40h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 10010101b ; 95h
-
-CMD1:
-	db 01000001b ; 69h
-	db 01000000b ; 40h	; Does support HCS
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 11111111b ; ffh
-
-CMD8:
-	db 01001000b ; 48h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000001b ; 01h
-	db 10101010b ; aah
-	db 10000111b ; 87h
-
-CMD17:
-	db 01010001b ; 51h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 11111111b ; ffh
-
-CMD55:
-	db 01110111b ; 77h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 11111111b ; ffh
-
-CMD58:
-	db 01111010b ; 7ah
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 11111101b ; 75h
-
-ACMD41:
-	db 01101001b ; 69h
-	db 01000000b ; 40h	; Does support HCS
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 00000000b ; 00h
-	db 11111111b ; ffh
-	
 
 
 MSG_DONE:
 	db "Done\n", 0
+MSG_INIT:
+	db "Init\n", 0
 MSG_SUCC:
 	db "Succ\n", 0
 MSG_FAIL:
 	db "0 Fail\n", 0
-MSG_UNUSE:
-	db "Unusable\n", 0
-MSG_READ:
-	db "Reading\n", 0
+
+HAS_INIT:
+	db 0
 
 	include "utils/bios_constants.s"
-	include "utils/util.s"
-	include "utils/timing.s"
+;	include "utils/util.s"
+;	include "utils/timing.s"
+	include "utils/spi_sdcard.s"
+	include "utils/fat.s"
+
+
+	align 10h
+MBR_DATA:
+MBR_PART_TYPE:
+	ds 1
+MBR_PART_SECT:
+	ds 4
+VBR_DATA:
+VBR_SECT_CLST:
+	ds 1
+VBR_FAT1_SECT:
+	ds 4
+VBR_ROOT_SECT:
+	ds 4
+VBR_TOT_SECTR:
+	ds 2
+VBR_DATA_SECT:
+	ds 4
+VBR_VOL_LABEL:
+	ds 11
+
+	align 100h
+DISK_BUFFER:
+
+
+
+
+
+
+
 
 	end

@@ -35,6 +35,5 @@ SIOCMDB:  	equ	00f3h
 
 ; SPI Ports
 SPIDATA:	equ	070h
-SPICTRL1:	equ	071h
-SPICTRL2:	equ	073h
+SPICTRL:	equ	071h
 
